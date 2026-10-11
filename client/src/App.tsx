@@ -12,6 +12,7 @@ import MaintenancePage from './pages/maintenance/MaintenancePage.js';
 import ReportsPage from './pages/reports/ReportsPage.js';
 import SettingsPage from './pages/settings/SettingsPage.js';
 import DriverPortalPage from './pages/driver/DriverPortalPage.js';
+import CustomerPortalPage from './pages/customer/CustomerPortalPage.js';
 import ErrorBoundary from './components/ErrorBoundary.js';
 import { useAuthStore } from './store/auth.store.js';
 
@@ -35,6 +36,10 @@ export default function App() {
         <Route path="/dev" element={<SignInPage devMode />} />
         <Route path="/demo" element={<SignInPage devMode />} />
         <Route path="/auth/dev" element={<SignInPage devMode />} />
+
+        {/* Public / Customer Booking Portal */}
+        <Route path="/customer" element={<CustomerPortalPage />} />
+        <Route path="/book" element={<CustomerPortalPage />} />
 
         {/* Protected app routes */}
         <Route

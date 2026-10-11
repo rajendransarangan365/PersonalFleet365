@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
   Car, Plus, Search, Filter, Fuel, Gauge, AlertCircle,
   CheckCircle2, Wrench, Shield, ChevronRight, X, Camera,
-  Sparkles
+  Sparkles, MapPin, Phone, MessageSquare, Radio, Users, Trash2, Edit3
 } from 'lucide-react';
 import { apiGet, apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
+import { useContactsStore, type FleetContact } from '../../store/contacts.store.js';
 import { formatINR } from '@fleetwise/shared';
 import VehiclePhotoGalleryModal from '../../components/VehiclePhotoGalleryModal.js';
 import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
+import InAppCallModal from '../../components/InAppCallModal.js';
+import InAppChatModal from '../../components/InAppChatModal.js';
 
 interface Vehicle {
   _id: string;
@@ -76,6 +79,11 @@ const mockVehicles: Vehicle[] = [
 
 export default function VehiclesPage() {
   const { activeBusinessId } = useAuthStore();
+  const { contacts, deleteContact } = useContactsStore();
+  const drivers = contacts.filter((c) => c.role === 'driver');
+  const [viewMode, setViewMode] = useState<'cards' | 'live_map'>('cards');
+  const [activeCallContact, setActiveCallContact] = useState<FleetContact | null>(null);
+  const [activeChatContact, setActiveChatContact] = useState<FleetContact | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -324,6 +332,48 @@ export default function VehiclesPage() {
               </div>
             </div>
 
+            {/* Driver Assignment & In-App Call/Chat */}
+            {(() => {
+              const driver = drivers.find((d) => d.vehiclePlate === vehicle.registrationNumber) || drivers[0];
+              return (
+                <div className="bg-slate-900/80 rounded-xl p-2.5 my-2 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-brand-400" />
+                      <span className="font-medium text-slate-200">{driver ? driver.name : 'Unassigned'}</span>
+                    </span>
+                    {driver?.speedKmH !== undefined && (
+                      <span className="font-mono text-[11px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        {driver.speedKmH > 0 ? `${driver.speedKmH} km/h` : 'Stationary'}
+                      </span>
+                    )}
+                  </div>
+
+                  {driver && (
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <button
+                        onClick={() => setActiveCallContact(driver)}
+                        className="py-1.5 px-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                        title={`Call driver ${driver.name} via VoIP HD Audio`}
+                      >
+                        <Phone className="w-3 h-3 text-emerald-400" />
+                        <span>Call Driver</span>
+                      </button>
+
+                      <button
+                        onClick={() => setActiveChatContact(driver)}
+                        className="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                        title={`Send dispatch message to ${driver.name}`}
+                      >
+                        <MessageSquare className="w-3 h-3 text-cyan-400" />
+                        <span>Chat Driver</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 mt-2">
               <button
                 onClick={() => setSelectedVehicleForPhotos(vehicle)}
@@ -333,8 +383,17 @@ export default function VehiclesPage() {
                 <Camera className="w-3.5 h-3.5" />
                 <span>4-Angle Photos Proof</span>
               </button>
-              <button className="text-xs font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1">
-                Manage <ChevronRight className="w-3.5 h-3.5" />
+
+              <button
+                onClick={() => {
+                  if (confirm(`Remove vehicle ${vehicle.registrationNumber} from fleet?`)) {
+                    setVehicles(vehicles.filter((v) => v._id !== vehicle._id));
+                  }
+                }}
+                className="text-xs font-medium text-rose-400 hover:text-rose-300 flex items-center gap-1 p-1 hover:bg-rose-500/10 rounded-lg transition-colors"
+                title="Delete Vehicle"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -503,6 +562,28 @@ export default function VehiclesPage() {
           onSuccess={() => {
             loadVehicles();
           }}
+        />
+      )}
+
+      {/* In-App VoIP Call Modal */}
+      {activeCallContact && (
+        <InAppCallModal
+          isOpen={Boolean(activeCallContact)}
+          onClose={() => setActiveCallContact(null)}
+          callerName={activeCallContact.name}
+          callerRole={activeCallContact.role}
+          targetPhone={activeCallContact.phone}
+          vehiclePlate={activeCallContact.vehiclePlate}
+        />
+      )}
+
+      {/* In-App Chat Modal */}
+      {activeChatContact && (
+        <InAppChatModal
+          isOpen={Boolean(activeChatContact)}
+          onClose={() => setActiveChatContact(null)}
+          contact={activeChatContact}
+          onStartCall={(contact) => setActiveCallContact(contact)}
         />
       )}
     </div>

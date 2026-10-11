@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Car, MapPin, Fuel, Wrench, TrendingUp,
   FileBarChart, Settings, Calculator, LogOut, Bell, ChevronLeft,
   ChevronRight, Menu, X, Truck, Building2, ChevronDown, Sparkles,
-  Navigation, PlusCircle, MessageSquare, Phone
+  Navigation, PlusCircle, MessageSquare, Phone, Users, ShieldAlert
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
 import VersionUpdateModal from '../components/VersionUpdateModal.js';
@@ -16,11 +16,15 @@ import ServerStatusIndicator from '../components/ServerStatusIndicator.js';
 import NotificationCenterDrawer from '../components/NotificationCenterDrawer.js';
 import InAppChatModal from '../components/InAppChatModal.js';
 import InAppCallModal from '../components/InAppCallModal.js';
+import ContactDirectoryModal from '../components/ContactDirectoryModal.js';
+import CompulsoryPasswordChangeModal from '../components/CompulsoryPasswordChangeModal.js';
+import type { FleetContact } from '../store/contacts.store.js';
 import { CURRENT_CLIENT_VERSION } from '../services/version.service.js';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: Navigation, label: 'Driver Console & GPS', path: '/driver-portal' },
+  { icon: Users, label: 'Customer Ride Portal', path: '/customer' },
   { icon: Calculator, label: 'Simulator', path: '/simulator' },
   { icon: MapPin, label: 'Trips', path: '/trips' },
   { icon: Car, label: 'Vehicles', path: '/vehicles' },
@@ -57,6 +61,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [unreadCount, setUnreadCount] = useState(2);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCallOpen, setIsCallOpen] = useState(false);
+  const [isContactDirectoryOpen, setIsContactDirectoryOpen] = useState(false);
+  const [selectedCallContact, setSelectedCallContact] = useState<FleetContact | null>(null);
+  const [selectedChatContact, setSelectedChatContact] = useState<FleetContact | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState(() => {
+    return Boolean(user?.email?.includes('temp') || localStorage.getItem('fleet_must_change_pwd') === 'true');
+  });
 
   const activeBusiness = businesses.find((b) => b.businessId === activeBusinessId);
 
@@ -209,21 +219,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
             {/* Live Server Connection Status Indicator */}
             <ServerStatusIndicator />
 
-            {/* In-App Direct Chat */}
+            {/* In-App Direct Chat & Contact Directory */}
             <button
-              onClick={() => setIsChatOpen(true)}
+              onClick={() => setIsContactDirectoryOpen(true)}
               className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-cyan-400 hover:text-cyan-300 border border-slate-700/60 transition-colors"
-              title="Open Live Dispatch Chat"
+              title="Open Live Dispatch Chat & Contact Directory"
               id="header-chat-button"
             >
               <MessageSquare className="w-4 h-4" />
             </button>
 
-            {/* In-App Direct Voice Call */}
+            {/* In-App Direct Voice Call & Contact Directory */}
             <button
-              onClick={() => setIsCallOpen(true)}
+              onClick={() => setIsContactDirectoryOpen(true)}
               className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 hover:text-emerald-300 border border-slate-700/60 transition-colors"
-              title="Start In-App Voice Call with Fleet Manager"
+              title="Start In-App VoIP Call (Drivers, Managers, Helpline)"
               id="header-call-button"
             >
               <Phone className="w-4 h-4" />
@@ -309,18 +319,45 @@ export default function AppLayout({ children }: AppLayoutProps) {
         onUnreadCountChange={setUnreadCount}
       />
 
+      {/* Unified Fleet Contact Directory Modal (Drivers, Managers, Helpline, Customers) */}
+      <ContactDirectoryModal
+        isOpen={isContactDirectoryOpen}
+        onClose={() => setIsContactDirectoryOpen(false)}
+        onSelectCall={(contact) => {
+          setSelectedCallContact(contact);
+          setIsCallOpen(true);
+        }}
+        onSelectChat={(contact) => {
+          setSelectedChatContact(contact);
+          setIsChatOpen(true);
+        }}
+      />
+
       {/* Live In-App Chat Modal */}
       <InAppChatModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
-        driverName={user?.displayName || 'Karthik Raja'}
+        contact={selectedChatContact}
+        onStartCall={(contact) => {
+          setSelectedCallContact(contact);
+          setIsCallOpen(true);
+        }}
       />
 
       {/* Live In-App Voice Call Modal */}
       <InAppCallModal
         isOpen={isCallOpen}
         onClose={() => setIsCallOpen(false)}
-        callerName="Fleet Dispatch Control"
+        callerName={selectedCallContact?.name || 'Fleet Dispatch Control'}
+        callerRole={selectedCallContact?.role || 'Operations Control'}
+        targetPhone={selectedCallContact?.phone || '+91 98401 23456'}
+        vehiclePlate={selectedCallContact?.vehiclePlate}
+      />
+
+      {/* Compulsory Password Change Modal for newly assigned staff */}
+      <CompulsoryPasswordChangeModal
+        isOpen={mustChangePassword}
+        onSuccess={() => setMustChangePassword(false)}
       />
 
       {/* Mini popup toast for new versions / improvements */}
