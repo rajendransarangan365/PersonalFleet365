@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Sparkles, KeyRound, ShieldAlert, Copy, Check, ChevronRight } from 'lucide-react';
 import { SignInSchema, type SignInInput } from '@fleetwise/shared';
 import { apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
@@ -10,17 +10,29 @@ import type { User } from '@fleetwise/shared';
 import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 import FleetLogo from '../../components/FleetLogo.js';
 
-export default function SignInPage() {
+interface SignInPageProps {
+  devMode?: boolean;
+}
+
+export default function SignInPage({ devMode }: SignInPageProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { setTokenAndUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
+  // Check if accessed via secret /dev route or ?dev=1
+  const [isDevMode, setIsDevMode] = useState(() => {
+    return Boolean(devMode || location.pathname.includes('/dev') || searchParams.get('dev') === 'true' || searchParams.get('dev') === '1');
+  });
+
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignInInput>({
     resolver: zodResolver(SignInSchema),
@@ -51,6 +63,79 @@ export default function SignInPage() {
     [setTokenAndUser, navigate],
   );
 
+  const DEMO_ACCOUNTS = [
+    {
+      role: 'fleet_owner' as const,
+      label: 'Fleet Owner (Admin)',
+      email: 'owner@fleetwise.in',
+      password: 'Password@123',
+      badge: 'Full Fleet Control',
+      badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+      description: 'Profit simulator, finance, loan EMI tracking, live GPS',
+      target: '/dashboard',
+    },
+    {
+      role: 'fleet_manager' as const,
+      label: 'Fleet Manager (Operations)',
+      email: 'manager@fleetwise.in',
+      password: 'Password@123',
+      badge: 'Dispatch Operations',
+      badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      description: 'Driver assignments, vehicle maintenance, VoIP calling & chat',
+      target: '/trips',
+    },
+    {
+      role: 'driver' as const,
+      label: 'Commercial Driver',
+      email: 'driver@fleetwise.in',
+      password: 'Password@123',
+      badge: 'Driver Console',
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      description: 'Live trip GPS tracker, vehicle condition photos, duty task dispatch',
+      target: '/driver-portal',
+    },
+  ];
+
+  const handleAutoFill = (email: string, password: string) => {
+    setValue('email', email, { shouldValidate: true });
+    setValue('password', password, { shouldValidate: true });
+  };
+
+  const handleInstantDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
+    handleAutoFill(account.email, account.password);
+    setServerError(null);
+
+    try {
+      const result = await apiPost<{
+        accessToken: string;
+        user: User;
+        businesses: Array<{ businessId: string; role: string }>;
+      }>('/auth/signin', { email: account.email, password: account.password });
+
+      setTokenAndUser(result.accessToken, result.user, result.businesses.map((b) => ({
+        ...b,
+        permissions: [],
+      })));
+    } catch {
+      // Instant offline / fallback demo session
+      const mockUser: User = {
+        id: `demo_${account.role}_01`,
+        email: account.email,
+        displayName: account.label,
+        role: account.role,
+        isActive: true,
+        emailVerified: true,
+      } as any;
+
+      setTokenAndUser('demo_jwt_access_token_mock', mockUser, [
+        { businessId: 'demo_fleet_biz_01', role: account.role, permissions: [] },
+      ]);
+    }
+
+    setSuccess(true);
+    setTimeout(() => navigate(account.target), 400);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       {/* Background gradient */}
@@ -60,7 +145,68 @@ export default function SignInPage() {
 
       <div className="relative w-full max-w-md animate-fade-in">
         {/* Fleet365 Stylized Logo */}
-        <FleetLogo size="xl" subtitle="Commercial Fleet Management Platform" className="justify-center mb-8" />
+        <FleetLogo size="xl" subtitle="Commercial Fleet Management Platform" className="justify-center mb-6" />
+
+        {/* Secret Demo Access Portal (/dev) */}
+        {isDevMode && (
+          <div className="glass-card p-5 border-brand-500/30 bg-slate-900/95 shadow-2xl mb-6 animate-slide-in">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-brand-400" />
+                <h3 className="text-sm font-bold text-white">Secret Demo Access Portal</h3>
+              </div>
+              <span className="bg-brand-500/20 text-brand-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-brand-500/30">
+                Direct Link: /dev
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-2 mb-3">
+              Pre-configured demo profiles with immediate access and live test credentials:
+            </p>
+
+            <div className="space-y-2.5">
+              {DEMO_ACCOUNTS.map((acc) => (
+                <div
+                  key={acc.role}
+                  className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white">{acc.label}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${acc.badgeColor}`}>
+                        {acc.badge}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-400 font-mono">
+                      <span>Email: <span className="text-slate-200 select-all">{acc.email}</span></span>
+                      <span>Password: <span className="text-slate-200 select-all">{acc.password}</span></span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleAutoFill(acc.email, acc.password)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-colors"
+                      title="Auto-fill email & password"
+                    >
+                      Auto-Fill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleInstantDemoLogin(acc)}
+                      className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md flex items-center gap-1 transition-transform active:scale-95"
+                      title="1-Click Instant Login"
+                    >
+                      <span>Launch</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div className="glass-card p-8 shadow-2xl shadow-black/40">
@@ -172,8 +318,21 @@ export default function SignInPage() {
           </div>
         </div>
 
+        {/* Secret Dev Mode Toggle */}
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            onClick={() => setIsDevMode((v) => !v)}
+            className="text-xs text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1.5 mx-auto transition-colors font-mono"
+            id="secret-dev-toggle"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>{isDevMode ? 'Hide Secret Demo Logins' : 'Secret Demo Access (/dev)'}</span>
+          </button>
+        </div>
+
         {/* Footer */}
-        <p className="text-center text-xs text-slate-600 mt-6">
+        <p className="text-center text-xs text-slate-600 mt-4">
           © {new Date().getFullYear()} FleetWise. All rights reserved.
         </p>
       </div>

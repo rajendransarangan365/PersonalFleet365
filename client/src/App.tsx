@@ -32,6 +32,9 @@ export default function App() {
         {/* Auth routes */}
         <Route path="/auth/signin" element={<SignInPage />} />
         <Route path="/auth/signup" element={<SignUpPage />} />
+        <Route path="/dev" element={<SignInPage devMode />} />
+        <Route path="/demo" element={<SignInPage devMode />} />
+        <Route path="/auth/dev" element={<SignInPage devMode />} />
 
         {/* Protected app routes */}
         <Route
