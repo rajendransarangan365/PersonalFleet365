@@ -121,12 +121,12 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
   const passwordHash = user?.passwordHash ?? dummyHash;
   const passwordMatch = await verifyPassword(passwordHash, password);
 
-  const isDemoEmail = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in'].includes(email.toLowerCase());
+  const isDemoEmail = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in'].includes(email.toLowerCase());
   const isDemoPassword = password === 'Password@123' || password === 'demo123';
 
   if (!user && isDemoEmail && isDemoPassword) {
-    const demoRole = email.includes('owner') ? 'fleet_owner' : email.includes('manager') ? 'fleet_manager' : 'driver';
-    const demoName = email.includes('owner') ? 'Sarangan (Fleet Owner)' : email.includes('manager') ? 'Kishore (Fleet Manager)' : 'Karthik Raja (Duty Driver)';
+    const demoRole = email.includes('owner') ? 'fleet_owner' : email.includes('manager') ? 'fleet_manager' : email.includes('driver') ? 'driver' : 'customer';
+    const demoName = email.includes('owner') ? 'Sarangan (Fleet Owner)' : email.includes('manager') ? 'Kishore (Fleet Manager)' : email.includes('driver') ? 'Karthik Raja (Duty Driver)' : 'Ananya Sharma (Passenger)';
     const demoUserId = `demo_usr_${Date.now()}`;
     const accessToken = signAccessToken(demoUserId, email);
 

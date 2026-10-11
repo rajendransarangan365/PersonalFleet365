@@ -57,11 +57,11 @@ export default function SignInPage({ devMode }: SignInPageProps) {
         setTimeout(() => navigate('/dashboard'), 500);
       } catch (err: unknown) {
         // If demo credentials or dev accounts, automatically log in even if backend server returns 404 or is sleeping!
-        const isDemo = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in'].includes(data.email.toLowerCase());
+        const isDemo = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in'].includes(data.email.toLowerCase());
         if (isDemo) {
-          const role = data.email.includes('owner') ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : 'driver';
-          const name = data.email.includes('owner') ? 'Sarangan (Fleet Owner)' : data.email.includes('manager') ? 'Kishore (Fleet Manager)' : 'Karthik Raja (Duty Driver)';
-          const target = role === 'driver' ? '/driver-portal' : '/dashboard';
+          const role = data.email.includes('owner') ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : data.email.includes('driver') ? 'driver' : 'customer';
+          const name = data.email.includes('owner') ? 'Sarangan (Fleet Owner)' : data.email.includes('manager') ? 'Kishore (Fleet Manager)' : data.email.includes('driver') ? 'Karthik Raja (Duty Driver)' : 'Ananya Sharma (Passenger)';
+          const target = role === 'driver' ? '/driver-portal' : role === 'customer' ? '/customer' : '/dashboard';
 
           const mockUser: User = {
             id: `demo_${role}_01`,
@@ -118,6 +118,16 @@ export default function SignInPage({ devMode }: SignInPageProps) {
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       description: 'Live trip GPS tracker, vehicle condition photos, duty task dispatch',
       target: '/driver-portal',
+    },
+    {
+      role: 'customer' as const,
+      label: 'Passenger / Customer',
+      email: 'customer@fleetwise.in',
+      password: 'Password@123',
+      badge: 'Passenger Portal',
+      badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+      description: 'Ola/Uber ride booking, live map, driver in-app calling & OTP',
+      target: '/customer',
     },
   ];
 
