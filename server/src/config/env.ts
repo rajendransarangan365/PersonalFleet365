@@ -59,13 +59,19 @@ const EnvSchema = z.object({
   GEMINI_API_KEY: z.string().default(''),
 });
 
-const parsed = EnvSchema.safeParse(process.env);
+let parsedEnv: z.infer<typeof EnvSchema>;
 
-if (!parsed.success) {
-  console.error('❌ Invalid environment variables:');
-  console.error(parsed.error.flatten().fieldErrors);
+try {
+  parsedEnv = EnvSchema.parse(process.env);
+} catch (error) {
+  if (error instanceof z.ZodError) {
+    console.error('❌ Invalid environment variables:');
+    console.error(error.flatten().fieldErrors);
+  } else {
+    console.error('❌ Error parsing environment variables:', error);
+  }
   process.exit(1);
 }
 
-export const env = parsed.data;
-export type Env = typeof env;
+export const env: z.infer<typeof EnvSchema> = parsedEnv;
+export type Env = z.infer<typeof EnvSchema>;
