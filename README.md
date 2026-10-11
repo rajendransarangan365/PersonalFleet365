@@ -70,13 +70,44 @@ From the root workspace directory (`e:\fleet`):
 # 1. Install all dependencies across all packages
 npm install
 
-# 2. Start both backend (port 5000) and frontend (port 5173) together
+# 2. Start with Network & Mobile IP Discovery (Recommended for Mobile testing)
+npm run dev:all
+
+# Or standard localhost:
 npm run dev
 ```
 
-- **Frontend Application**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:5000/api/v1](http://localhost:5000/api/v1)
-- **Health Check**: [http://localhost:5000/health](http://localhost:5000/health)
+When you run `npm run dev:all`, it automatically scans and displays your active local network IPs:
+- **PC Browser**: [http://localhost:5173](http://localhost:5173)
+- **Mobile Phone Browser (same Wi-Fi)**: `http://<YOUR_WIFI_IP>:5173` (e.g. `http://192.168.31.22:5173`)
+- **Backend API**: `http://localhost:5000/api/v1`
+
+---
+
+### 📶 Wireless ADB Debugging (Test APK on Mobile Phone)
+
+FleetWise includes built-in wireless ADB scripts to connect and test on your Android device over Wi-Fi without cables:
+
+#### 1. Connect Phone Wirelessly:
+```bash
+npm run adb:wireless
+```
+- Open **Settings ➔ Developer Options ➔ Wireless Debugging** on your phone.
+- Tap **Pair device with pairing code**.
+- Enter the IP, pairing port, and 6-digit code prompted by the terminal.
+
+#### 2. Install & Launch APK Wirelessly:
+```bash
+npm run adb:install
+```
+This automatically compiles your latest code into `app-debug.apk` and installs it wirelessly onto your phone!
+
+#### 3. Live Chrome DevTools Inspection:
+While the app or web page runs on your phone, open Google Chrome on your PC and navigate to:
+```
+chrome://inspect/#devices
+```
+You can view console logs, inspect CSS, and test network requests live on the phone!
 
 ---
 
