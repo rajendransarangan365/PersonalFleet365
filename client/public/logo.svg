@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Brand Cyan-to-Blue Gradient -->
+    <linearGradient id="brandCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+
+    <!-- Neon Glow Gradient -->
+    <linearGradient id="neonGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+
+    <!-- Amber Accent for 365 -->
+    <linearGradient id="amberGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+
+    <!-- Drop Shadow Filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#2563eb" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Hex-Shield Badge -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="url(#neonGlow)" stroke-width="4" stroke-opacity="0.4" />
+
+  <!-- Aerodynamic Fleet Speed Vehicle Silhouette -->
+  <g filter="url(#shadow)" transform="translate(48, 64)">
+    <!-- Aerodynamic Speed Tail Flares -->
+    <path d="M40 260 L140 260 L100 290 L20 290 Z" fill="url(#neonGlow)" opacity="0.6" />
+    <path d="M60 210 L160 210 L130 235 L40 235 Z" fill="url(#brandCyan)" opacity="0.8" />
+    <path d="M90 160 L180 160 L160 180 L80 180 Z" fill="#38bdf8" opacity="0.5" />
+
+    <!-- Sleek Modern Commercial Cab / Sedan Cockpit Profile -->
+    <path d="M110 240 L160 140 C175 110, 205 90, 250 85 L320 85 C355 85, 380 105, 395 135 L430 200 C445 220, 440 245, 420 250 L110 250 Z" 
+          fill="url(#brandCyan)" />
+
+    <!-- Sleek Windshield & Side Windows Glassmorphism -->
+    <path d="M180 145 L225 105 C240 98, 255 96, 280 96 L315 96 C335 96, 350 106, 360 120 L385 160 C388 165, 385 170, 378 170 L190 170 C182 170, 176 155, 180 145 Z" 
+          fill="#020617" opacity="0.88" />
+    
+    <!-- Window Glare Reflection -->
+    <path d="M220 102 L290 102 L260 165 L200 165 Z" fill="#ffffff" opacity="0.18" />
+
+    <!-- Front High-Performance LED Headlamp Flare -->
+    <path d="M410 210 L445 215 C452 217, 452 225, 442 228 L395 235 Z" fill="#38bdf8" />
+    <circle cx="430" cy="222" r="5" fill="#ffffff" />
+
+    <!-- Dual Alloy Wheels -->
+    <!-- Rear Wheel -->
+    <circle cx="160" cy="260" r="46" fill="#020617" stroke="#334155" stroke-width="6" />
+    <circle cx="160" cy="260" r="26" fill="url(#brandCyan)" />
+    <circle cx="160" cy="260" r="10" fill="#ffffff" />
+
+    <!-- Front Wheel -->
+    <circle cx="360" cy="260" r="46" fill="#020617" stroke="#334155" stroke-width="6" />
+    <circle cx="360" cy="260" r="26" fill="url(#brandCyan)" />
+    <circle cx="360" cy="260" r="10" fill="#ffffff" />
+  </g>
+
+  <!-- 365 Dynamic Golden Emblem Badge -->
+  <g transform="translate(256, 380)">
+    <!-- Pill Backdrop -->
+    <rect x="-140" y="-36" width="280" height="72" rx="36" fill="#090d16" stroke="url(#amberGold)" stroke-width="3" />
+    
+    <!-- Text "FLEET 365" -->
+    <text x="-65" y="10" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#f8fafc" letter-spacing="3">FLEET</text>
+    <text x="50" y="11" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="900" fill="url(#amberGold)" letter-spacing="1">365</text>
+    
+    <!-- Pulse dot -->
+    <circle cx="-95" cy="0" r="6" fill="#10b981" />
+  </g>
+</svg>

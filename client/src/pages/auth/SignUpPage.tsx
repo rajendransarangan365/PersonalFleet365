@@ -2,15 +2,18 @@ import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, CheckCircle2, Shield, Sparkles } from 'lucide-react';
 import { SignUpSchema, type SignUpInput } from '@fleetwise/shared';
 import { apiPost } from '../../services/api.js';
+import FleetLogo from '../../components/FleetLogo.js';
+import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [devToken, setDevToken] = useState<string | null>(null);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const {
     register,
@@ -78,16 +81,8 @@ export default function SignUpPage() {
       <div className="absolute inset-0 bg-gradient-to-br from-brand-950/40 via-slate-950 to-slate-950 pointer-events-none" />
 
       <div className="relative w-full max-w-md animate-fade-in">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-500/30">
-            <Truck className="w-7 h-7 text-white" strokeWidth={2} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">FleetWise</h1>
-            <p className="text-xs text-slate-500">Fleet Management Platform</p>
-          </div>
-        </div>
+        {/* Fleet365 Stylized Logo */}
+        <FleetLogo size="xl" subtitle="Commercial Fleet Management Platform" className="justify-center mb-8" />
 
         <div className="glass-card p-8 shadow-2xl shadow-black/40">
           <div className="mb-6">
@@ -205,8 +200,24 @@ export default function SignUpPage() {
               Sign in
             </Link>
           </p>
+
+          <div className="mt-4 pt-4 border-t border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => setIsOnboardingOpen(true)}
+              className="w-full btn-secondary text-xs py-2.5 flex items-center justify-center gap-2 text-brand-400 border-brand-500/30 hover:bg-brand-500/10 shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+              <span>Easy Step-by-Step Fleet Onboarding</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      <OnboardingWizardModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+      />
     </div>
   );
 }

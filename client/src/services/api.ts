@@ -4,7 +4,20 @@ import type { ApiResult } from '@fleetwise/shared';
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1';
+export function getApiBaseUrl(): string {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  const custom = typeof window !== 'undefined' ? localStorage.getItem('fleet_api_url') : null;
+  if (custom) return custom;
+  
+  // If running inside Android APK and no local proxy is available, fallback to Render URL
+  const isCapacitor = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:');
+  if (isCapacitor) {
+    return 'https://fleet365-api.onrender.com/api/v1';
+  }
+  return '/api/v1';
+}
+
+const API_BASE = getApiBaseUrl();
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE,

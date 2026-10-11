@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Settings, Building2, Users, Smartphone, Shield,
   Database, Download, CheckCircle2, Save, HardDrive,
-  Sparkles, RefreshCw
+  Sparkles, RefreshCw, Server, Globe
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store.js';
 import VersionUpdateModal from '../../components/VersionUpdateModal.js';
@@ -17,8 +17,32 @@ export default function SettingsPage() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
+  const [serverUrl, setServerUrl] = useState(
+    typeof window !== 'undefined'
+      ? localStorage.getItem('fleet_api_url') || 'https://fleet365-api.onrender.com/api/v1'
+      : 'https://fleet365-api.onrender.com/api/v1'
+  );
+  const [pingStatus, setPingStatus] = useState<string | null>(null);
+
+  const testServerConnection = async () => {
+    setPingStatus('Testing connection to ' + serverUrl + '...');
+    try {
+      const cleanBase = serverUrl.replace(/\/api\/v1\/?$/, '');
+      const res = await fetch(`${cleanBase}/health`);
+      if (res.ok) {
+        setPingStatus('✅ Connected to Server successfully (HTTP 200 OK)!');
+        localStorage.setItem('fleet_api_url', serverUrl);
+      } else {
+        setPingStatus(`⚠️ Server responded with HTTP ${res.status}`);
+      }
+    } catch (err: any) {
+      setPingStatus('❌ Connection failed: ' + err.message);
+    }
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    localStorage.setItem('fleet_api_url', serverUrl);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };
@@ -125,6 +149,57 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Cloud Backend Server & Android Sync (Render Connection) */}
+      <div className="glass-card p-6 border-slate-700">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 className="text-base font-semibold text-white flex items-center gap-2">
+              <Server className="w-4 h-4 text-emerald-400" />
+              Central Cloud Server Connection (Render / API Sync)
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Connect this web app and the Android APK to your central backend server for live driver task assignment, GPS telemetry, calling, and messaging.
+            </p>
+          </div>
+          <span className="badge badge-primary whitespace-nowrap">Render Ready</span>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="form-label text-xs">Central Server API Base URL</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Globe className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="url"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="https://fleet365-api.onrender.com/api/v1"
+                  className="form-input pl-9 text-xs font-mono"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={testServerConnection}
+                className="btn-secondary text-xs px-4 flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Test Ping</span>
+              </button>
+            </div>
+            {pingStatus && (
+              <p className="text-xs mt-1.5 font-medium text-slate-300">{pingStatus}</p>
+            )}
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+            <p className="font-semibold text-slate-200">🔗 How Android APK links with the Server:</p>
+            <p>1. When building the APK or deploying on Vercel, set <code className="text-brand-300">VITE_API_URL=https://your-service.onrender.com/api/v1</code>.</p>
+            <p>2. If no environment variable is baked in, the APK automatically communicates with this central Render address.</p>
+          </div>
+        </div>
       </div>
 
       {/* Standalone Android & Local Offline Mode */}

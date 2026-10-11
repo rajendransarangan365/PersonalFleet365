@@ -10,6 +10,8 @@ import { useAuthStore } from '../store/auth.store.js';
 import VersionUpdateModal from '../components/VersionUpdateModal.js';
 import VersionUpdateToast from '../components/VersionUpdateToast.js';
 import OnboardingWizardModal from '../components/OnboardingWizardModal.js';
+import FleetLogo from '../components/FleetLogo.js';
+import InstallWebAppBanner from '../components/InstallWebAppBanner.js';
 import { CURRENT_CLIENT_VERSION } from '../services/version.service.js';
 
 const navItems = [
@@ -62,17 +64,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const SidebarContent = () => (
     <>
-      {/* Logo */}
-      <div className={`flex items-center ${sidebarCollapsed ? 'justify-center px-3' : 'gap-3 px-5'} py-5 border-b border-slate-700/50`}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-cyan-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-500/30">
-          <Truck className="w-5 h-5 text-white" />
-        </div>
-        {!sidebarCollapsed && (
-          <div className="overflow-hidden">
-            <h1 className="text-base font-bold gradient-text leading-tight">FleetWise</h1>
-            <p className="text-[10px] text-slate-500 leading-tight">Fleet Management</p>
-          </div>
-        )}
+      {/* Fleet365 Stylized Brand Logo */}
+      <div className={`flex items-center ${sidebarCollapsed ? 'justify-center px-3' : 'px-5'} py-5 border-b border-slate-700/50`}>
+        <FleetLogo size={sidebarCollapsed ? 'xs' : 'md'} showText={!sidebarCollapsed} subtitle="Commercial Fleet OS" />
       </div>
 
       {/* Business switcher */}
@@ -281,6 +275,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
       />
+
+      {/* Modern PWA Install as Web App banner */}
+      <InstallWebAppBanner />
     </div>
   );
 }

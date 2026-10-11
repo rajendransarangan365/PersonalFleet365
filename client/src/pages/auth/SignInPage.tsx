@@ -8,6 +8,7 @@ import { apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
 import type { User } from '@fleetwise/shared';
 import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
+import FleetLogo from '../../components/FleetLogo.js';
 
 export default function SignInPage() {
   const navigate = useNavigate();
@@ -58,16 +59,8 @@ export default function SignInPage() {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md animate-fade-in">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-500/30">
-            <Truck className="w-7 h-7 text-white" strokeWidth={2} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">FleetWise</h1>
-            <p className="text-xs text-slate-500">Fleet Management Platform</p>
-          </div>
-        </div>
+        {/* Fleet365 Stylized Logo */}
+        <FleetLogo size="xl" subtitle="Commercial Fleet Management Platform" className="justify-center mb-8" />
 
         {/* Card */}
         <div className="glass-card p-8 shadow-2xl shadow-black/40">

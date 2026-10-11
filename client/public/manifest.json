@@ -1,0 +1,25 @@
+{
+  "short_name": "Fleet365",
+  "name": "Fleet365 — Commercial Fleet & Taxi Operations",
+  "description": "Commercial fleet management, vehicle condition inspection proof, GPS trip tracker, loan EMI & AdBlue logs",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "64x64 32x32",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/dashboard",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["business", "finance", "productivity", "navigation"]
+}
