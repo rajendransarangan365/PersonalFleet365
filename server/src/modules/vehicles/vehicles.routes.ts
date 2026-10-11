@@ -6,9 +6,10 @@ import * as VehicleController from './vehicles.controller.js';
 
 const router = Router({ mergeParams: true });
 
-router.use(requireAuth, requireBusinessMembership);
-
+// Cloudinary storage usage & free tier quota gauge
 router.get('/media/quota', VehicleController.getCloudinaryQuotaHandler);
+
+router.use(requireAuth, requireBusinessMembership);
 router.get('/', requirePermission('vehicle.read'), VehicleController.listVehicles);
 router.post('/', requirePermission('vehicle.create'), validate(CreateVehicleSchema), VehicleController.createVehicle);
 router.get('/:vehicleId', requirePermission('vehicle.read'), VehicleController.getVehicle);

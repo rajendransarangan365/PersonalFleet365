@@ -127,7 +127,8 @@ export function createApp() {
   app.use('/api/v1/businesses', businessRoutes);
   app.use('/api/v1/app', appRoutes);
 
-  // Nested vehicle routes under businesses
+  // Vehicle routes (direct and nested under business)
+  app.use('/api/v1/vehicles', vehicleRoutes);
   app.use('/api/v1/businesses/:businessId/vehicles', vehicleRoutes);
   app.use('/api/v1/businesses/:businessId/trips', tripRoutes);
   app.use('/api/v1/businesses/:businessId/expenses', expenseRoutes);

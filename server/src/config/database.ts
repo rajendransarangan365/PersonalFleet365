@@ -30,8 +30,10 @@ export async function connectDatabase(): Promise<void> {
       isConnected = false;
     });
   } catch (err) {
-    logger.error('Failed to connect to MongoDB', { error: err });
-    process.exit(1);
+    logger.error('Failed to connect to MongoDB (operating in offline/local mock fallback mode in development)', { error: err });
+    if (env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 }
 
