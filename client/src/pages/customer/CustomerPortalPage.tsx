@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import InAppCallModal from '../../components/InAppCallModal.js';
 import InAppChatModal from '../../components/InAppChatModal.js';
+import IncomingCallModal from '../../components/IncomingCallModal.js';
+import LiveDemoPersonaBar from '../../components/LiveDemoPersonaBar.js';
 import FleetLogo from '../../components/FleetLogo.js';
 import { useContactsStore, type FleetContact } from '../../store/contacts.store.js';
 
@@ -521,6 +523,23 @@ export default function CustomerPortalPage() {
           onStartCall={(contact) => setActiveCallContact(contact)}
         />
       )}
+
+      {/* Real Incoming Call Screen with Accept & Reject */}
+      <IncomingCallModal
+        onAccept={(session) => {
+          setActiveCallContact({
+            id: session.callerId,
+            name: session.callerName,
+            role: session.callerRole as any,
+            phone: session.callerPhone,
+            vehiclePlate: session.vehiclePlate,
+            status: 'online',
+          });
+        }}
+      />
+
+      {/* Live Testing Persona Switcher Bar */}
+      <LiveDemoPersonaBar />
     </div>
   );
 }

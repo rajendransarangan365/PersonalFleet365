@@ -18,6 +18,8 @@ import InAppChatModal from '../components/InAppChatModal.js';
 import InAppCallModal from '../components/InAppCallModal.js';
 import ContactDirectoryModal from '../components/ContactDirectoryModal.js';
 import CompulsoryPasswordChangeModal from '../components/CompulsoryPasswordChangeModal.js';
+import IncomingCallModal from '../components/IncomingCallModal.js';
+import LiveDemoPersonaBar from '../components/LiveDemoPersonaBar.js';
 import type { FleetContact } from '../store/contacts.store.js';
 import { CURRENT_CLIENT_VERSION } from '../services/version.service.js';
 
@@ -374,6 +376,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
         isOpen={isOnboardingOpen}
         onClose={() => setIsOnboardingOpen(false)}
       />
+
+      {/* Real Incoming VoIP Call Screen (Accept & Decline with Ringtone) */}
+      <IncomingCallModal
+        onAccept={(session) => {
+          setSelectedCallContact({
+            id: session.callerId,
+            name: session.callerName,
+            role: session.callerRole as any,
+            phone: session.callerPhone,
+            vehiclePlate: session.vehiclePlate,
+            status: 'online',
+          });
+          setIsCallOpen(true);
+        }}
+      />
+
+      {/* Floating Demo Persona Testing Suite (1-Click Switch & Ring Phone) */}
+      <LiveDemoPersonaBar />
 
       {/* Modern PWA Install as Web App banner */}
       <InstallWebAppBanner />
