@@ -90,34 +90,83 @@
     @apply px-6 py-3 text-base rounded-2xl;
   }
 
-  /* Form inputs */
-  .input {
-    @apply w-full px-3.5 py-2.5 rounded-xl bg-slate-900/60 border border-slate-700
-           text-slate-100 placeholder:text-slate-500 text-sm
-           transition-all duration-150
-           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
-           disabled:opacity-50 disabled:cursor-not-allowed;
+  /* Form inputs & controls */
+  .input,
+  .form-input,
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  select,
+  textarea {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(51, 65, 85, 0.8);
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: all 0.15s ease-in-out;
+    outline: none;
   }
 
-  .input-error {
-    @apply border-danger/60 focus:ring-danger;
+  .input::placeholder,
+  .form-input::placeholder,
+  input::placeholder {
+    color: #64748b !important;
   }
 
-  .label {
-    @apply block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide;
+  .input:focus,
+  .form-input:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #0284c7 !important;
+    background-color: #1e293b !important;
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3) !important;
+  }
+
+  .input-error,
+  .form-input-error {
+    border-color: #ef4444 !important;
+  }
+
+  .label,
+  .form-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 0.375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   .field-error {
-    @apply text-xs text-danger mt-1;
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
   }
 
   /* Select */
+  select,
+  select.form-input,
   .select {
-    @apply input appearance-none pr-10 cursor-pointer;
-    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     background-size: 1.25rem;
+  }
+
+  select option {
+    background-color: #0f172a;
+    color: #f8fafc;
   }
 
   /* Status badges */

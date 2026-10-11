@@ -1,11 +1,11 @@
 import { z } from 'zod';
+import dotenv from 'dotenv';
 import path from 'path';
 
 // Load .env file in development
-if (process.env['NODE_ENV'] !== 'production') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-}
+dotenv.config({ path: path.resolve(process.cwd(), 'server/.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config();
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
