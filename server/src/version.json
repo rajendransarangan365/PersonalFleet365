@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "buildNumber": 100,
+  "releaseDate": "2026-10-11",
+  "minSupportedVersion": "1.0.0",
+  "latestVersion": "1.0.0",
+  "hasUpdate": false,
+  "apkDownloadUrl": "https://github.com/rajendransarangan365/PersonalFleet365-release/releases/latest/download/app-debug.apk",
+  "githubReleaseUrl": "https://github.com/rajendransarangan365/PersonalFleet365-release/releases",
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-11",
+      "title": "FleetWise 1.0 Production & Standalone APK Release",
+      "isCurrent": true,
+      "highlights": "Complete Taxi Business Intelligence, Fleet Management, 5-Year Profit Simulator, Gemini AI Free Tier diagnostics, and Standalone Android APK support.",
+      "categories": {
+        "features": [
+          "Real-time Taxi Business Intelligence dashboard with MTD revenue, operating profit, and fuel expense analytics",
+          "Fleet Management CRUD with comprehensive fuel tags: EV, Petrol, Diesel, and CNG",
+          "Smart Trip Ledger with multi-platform ride aggregation (Ola, Uber, Rapido, and Private leases)",
+          "5-Year Multi-Vehicle Profit Simulator with compounding EMI, insurance, maintenance, and battery/engine degradation curves",
+          "Google Gemini Flash Free Tier AI Advisor for deep scenario diagnostics and fleet margin optimizations"
+        ],
+        "mobile": [
+          "Standalone Android APK wrapper powered by Capacitor 6",
+          "Offline-first architecture with local SQLite and IndexedDB caching for zero-connection operation",
+          "One-click local database backup export (JSON format) directly from device settings",
+          "Mobile-optimized adaptive bottom navigation and touch-friendly interface"
+        ],
+        "improvements": [
+          "High-performance MongoDB aggregation pipelines with sub-100ms response times",
+          "Strict Decimal128 currency representation eliminating floating-point financial discrepancies",
+          "Glassmorphism dark theme with high-contrast accessibility and smooth animations",
+          "In-app update checker and changelog viewer across both web and APK builds"
+        ],
+        "fixes": [
+          "Resolved PostCSS Tailwind @apply linting rules in IDE",
+          "Fixed Mongoose Document interface model inheritance typing",
+          "Secured JWT auth with Argon2 password hashing and refresh token rotation"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "fleetwise",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FleetWise — Taxi Business Intelligence, Fleet Management & Profit Simulator",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=client",
+    "test": "npm run test --workspace=shared && npm run test --workspace=server && npm run test --workspace=client",
+    "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
+    "type-check": "npm run type-check --workspace=client && npm run type-check --workspace=server",
+    "version:bump": "node scripts/bump-version.js",
+    "release": "node scripts/release.js"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
