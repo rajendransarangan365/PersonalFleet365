@@ -4,7 +4,7 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 
 async function bootstrap() {
-  await connectDatabase();
+  void connectDatabase();
 
   const app = createApp();
   const port = env.PORT;
