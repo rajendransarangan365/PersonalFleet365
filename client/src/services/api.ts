@@ -9,12 +9,26 @@ export function getApiBaseUrl(): string {
   const custom = typeof window !== 'undefined' ? localStorage.getItem('fleet_api_url') : null;
   if (custom) return custom;
   
-  // If running inside Android APK and no local proxy is available, fallback to Render URL
-  const isCapacitor = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:');
-  if (isCapacitor) {
-    return 'https://fleet365-api.onrender.com/api/v1';
+  if (typeof window !== 'undefined') {
+    const isCapacitor = Boolean((window as any).Capacitor?.isNativePlatform?.() || window.location.protocol === 'capacitor:');
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.') || host.startsWith('172.');
+    
+    // Fallback to Render backend when deployed to Vercel or running on Mobile APK
+    if (isCapacitor || !isLocal) {
+      return 'https://fleet365-api.onrender.com/api/v1';
+    }
   }
+
   return '/api/v1';
+}
+
+export function getServerHostUrl(): string {
+  const base = getApiBaseUrl();
+  if (base.startsWith('http')) {
+    return base.replace(/\/api\/v1\/?$/, '');
+  }
+  return '';
 }
 
 const API_BASE = getApiBaseUrl();

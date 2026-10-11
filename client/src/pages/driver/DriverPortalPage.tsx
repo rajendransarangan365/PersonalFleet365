@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import GpsTripTracker from '../../components/GpsTripTracker.js';
 import VehiclePhotoGalleryModal from '../../components/VehiclePhotoGalleryModal.js';
+import InAppChatModal from '../../components/InAppChatModal.js';
+import InAppCallModal from '../../components/InAppCallModal.js';
 import { useAuthStore } from '../../store/auth.store.js';
 import { apiGet } from '../../services/api.js';
 
@@ -59,6 +61,8 @@ export default function DriverPortalPage() {
 
   const [activeTask, setActiveTask] = useState<'pick_and_drop' | 'outstation'>('pick_and_drop');
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [completedTripStats, setCompletedTripStats] = useState<any>(null);
 
   return (
@@ -85,22 +89,22 @@ export default function DriverPortalPage() {
 
         {/* Manager Quick Dispatch Support */}
         <div className="flex items-center gap-2">
-          <a
-            href="tel:+911234567890"
-            className="btn-secondary text-xs flex items-center gap-1.5 px-3 py-2 text-slate-300 hover:text-white"
+          <button
+            onClick={() => setIsCallModalOpen(true)}
+            className="btn-secondary text-xs flex items-center gap-1.5 px-3 py-2 text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700"
+            title="Start In-App VoIP Call with Manager"
           >
-            <Phone className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Call Fleet Manager</span>
-          </a>
-          <a
-            href="https://wa.me/911234567890?text=Hello%20Fleet%20Manager,%20ready%20for%20trip%20assignment."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-secondary text-xs flex items-center gap-1.5 px-3 py-2 text-slate-300 hover:text-white"
+            <Phone className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span>In-App Call</span>
+          </button>
+          <button
+            onClick={() => setIsChatModalOpen(true)}
+            className="btn-secondary text-xs flex items-center gap-1.5 px-3 py-2 text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700"
+            title="Open Live Chat Thread"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-green-400" />
-            <span>WhatsApp Dispatch</span>
-          </a>
+            <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Chat Manager</span>
+          </button>
         </div>
       </div>
 
@@ -270,6 +274,21 @@ export default function DriverPortalPage() {
           userRole="driver"
         />
       )}
+
+      {/* In-App Live Chat Modal */}
+      <InAppChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        driverName={user?.displayName || 'Karthik Raja'}
+      />
+
+      {/* In-App Voice Call Modal */}
+      <InAppCallModal
+        isOpen={isCallModalOpen}
+        onClose={() => setIsCallModalOpen(false)}
+        callerName="Fleet Manager (Kishore)"
+        callerRole="Dispatch & Telemetry Control"
+      />
     </div>
   );
 }

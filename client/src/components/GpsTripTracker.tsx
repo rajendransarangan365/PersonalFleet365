@@ -7,23 +7,34 @@ import {
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default icon URLs in Vite
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+// Fix Leaflet default icon URLs in Vite safely
+try {
+  if (typeof window !== 'undefined' && (L as any)?.Icon?.Default) {
+    delete ((L as any).Icon.Default.prototype as any)._getIconUrl;
+    (L as any).Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }
+} catch {
+  // Ignore in SSR / non-browser environments
+}
 
-// Custom vehicle marker icon
-const carIcon = L.divIcon({
-  html: `<div style="background-color: #3b82f6; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(59, 130, 246, 0.7); border: 2px solid #ffffff;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 3c-.1.2-.1.4-.1.6v4.5c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
-        </div>`,
-  className: 'custom-car-pin',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+function getCarIcon() {
+  try {
+    return L.divIcon({
+      html: `<div style="background-color: #3b82f6; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(59, 130, 246, 0.7); border: 2px solid #ffffff;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 3c-.1.2-.1.4-.1.6v4.5c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+            </div>`,
+      className: 'custom-car-pin',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  } catch {
+    return undefined;
+  }
+}
 
 interface GpsPoint {
   lat: number;
@@ -114,8 +125,8 @@ export default function GpsTripTracker({
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Initial Marker
-    const marker = L.marker([initialLat, initialLng], { icon: carIcon }).addTo(map);
+    const carMarkerIcon = getCarIcon();
+    const marker = L.marker([initialLat, initialLng], carMarkerIcon ? { icon: carMarkerIcon } : {}).addTo(map);
     marker.bindPopup(`<b>${vehicleRegistration}</b><br>Driver: ${driverName}`);
 
     // Path Polyline

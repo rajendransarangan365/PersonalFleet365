@@ -12,6 +12,7 @@ import MaintenancePage from './pages/maintenance/MaintenancePage.js';
 import ReportsPage from './pages/reports/ReportsPage.js';
 import SettingsPage from './pages/settings/SettingsPage.js';
 import DriverPortalPage from './pages/driver/DriverPortalPage.js';
+import ErrorBoundary from './components/ErrorBoundary.js';
 import { useAuthStore } from './store/auth.store.js';
 
 // Protected layout wrapper
@@ -25,8 +26,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         {/* Auth routes */}
         <Route path="/auth/signin" element={<SignInPage />} />
         <Route path="/auth/signup" element={<SignUpPage />} />
@@ -127,5 +129,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
+  </ErrorBoundary>
   );
 }

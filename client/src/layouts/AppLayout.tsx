@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Car, MapPin, Fuel, Wrench, TrendingUp,
   FileBarChart, Settings, Calculator, LogOut, Bell, ChevronLeft,
   ChevronRight, Menu, X, Truck, Building2, ChevronDown, Sparkles,
-  Navigation, PlusCircle
+  Navigation, PlusCircle, MessageSquare, Phone
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
 import VersionUpdateModal from '../components/VersionUpdateModal.js';
@@ -12,6 +12,10 @@ import VersionUpdateToast from '../components/VersionUpdateToast.js';
 import OnboardingWizardModal from '../components/OnboardingWizardModal.js';
 import FleetLogo from '../components/FleetLogo.js';
 import InstallWebAppBanner from '../components/InstallWebAppBanner.js';
+import ServerStatusIndicator from '../components/ServerStatusIndicator.js';
+import NotificationCenterDrawer from '../components/NotificationCenterDrawer.js';
+import InAppChatModal from '../components/InAppChatModal.js';
+import InAppCallModal from '../components/InAppCallModal.js';
 import { CURRENT_CLIENT_VERSION } from '../services/version.service.js';
 
 const navItems = [
@@ -49,6 +53,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [businessPickerOpen, setBusinessPickerOpen] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(2);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCallOpen, setIsCallOpen] = useState(false);
 
   const activeBusiness = businesses.find((b) => b.businessId === activeBusinessId);
 
@@ -198,10 +206,33 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
+            {/* Live Server Connection Status Indicator */}
+            <ServerStatusIndicator />
+
+            {/* In-App Direct Chat */}
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-cyan-400 hover:text-cyan-300 border border-slate-700/60 transition-colors"
+              title="Open Live Dispatch Chat"
+              id="header-chat-button"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </button>
+
+            {/* In-App Direct Voice Call */}
+            <button
+              onClick={() => setIsCallOpen(true)}
+              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 hover:text-emerald-300 border border-slate-700/60 transition-colors"
+              title="Start In-App Voice Call with Fleet Manager"
+              id="header-call-button"
+            >
+              <Phone className="w-4 h-4" />
+            </button>
+
             {/* Quick Fleet Onboard / Registration button */}
             <button
               onClick={() => setIsOnboardingOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-600/30 to-cyan-600/30 hover:from-brand-600/40 hover:to-cyan-600/40 text-brand-300 border border-brand-500/30 text-xs font-semibold transition-all shadow-sm"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-600/30 to-cyan-600/30 hover:from-brand-600/40 hover:to-cyan-600/40 text-brand-300 border border-brand-500/30 text-xs font-semibold transition-all shadow-sm"
               title="Fast Onboarding Wizard: Add Fleet, Indian Car, Loan EMI, Mileage, Driver & OTP"
               id="header-onboarding-button"
             >
@@ -212,7 +243,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             {/* Version & Updates button */}
             <button
               onClick={() => setUpdateModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 text-xs font-mono font-medium transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 text-xs font-mono font-medium transition-all"
               title="View what's new & check for updates"
               id="version-check-button"
             >
@@ -221,9 +252,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </button>
 
             {/* Notifications bell */}
-            <button className="btn-ghost relative" aria-label="Notifications" id="notifications-bell">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand-500 border border-slate-900" />
+            <button
+              onClick={() => setIsNotificationDrawerOpen(true)}
+              className="btn-ghost relative p-1.5"
+              aria-label="Notifications"
+              id="notifications-bell"
+              title="View Notifications & Missed Alerts"
+            >
+              <Bell className="w-5 h-5 text-slate-300 hover:text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-slate-900 shadow-sm animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </button>
 
             {/* Mobile user avatar */}
@@ -260,6 +301,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
           })}
         </div>
       </nav>
+
+      {/* Missed Notifications Center Drawer */}
+      <NotificationCenterDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+        onUnreadCountChange={setUnreadCount}
+      />
+
+      {/* Live In-App Chat Modal */}
+      <InAppChatModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        driverName={user?.displayName || 'Karthik Raja'}
+      />
+
+      {/* Live In-App Voice Call Modal */}
+      <InAppCallModal
+        isOpen={isCallOpen}
+        onClose={() => setIsCallOpen(false)}
+        callerName="Fleet Dispatch Control"
+      />
 
       {/* Mini popup toast for new versions / improvements */}
       <VersionUpdateToast onOpenModal={() => setUpdateModalOpen(true)} />
