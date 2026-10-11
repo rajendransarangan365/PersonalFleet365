@@ -9,16 +9,16 @@ dotenv.config();
 
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().min(1024).max(65535).default(5000),
+  PORT: z.coerce.number().int().min(1).max(65535).default(5000),
 
-  MONGODB_URI: z.string().url().min(10),
+  MONGODB_URI: z.string().min(10).default('mongodb+srv://sarangan365_db_user:Secure2711@fleet365.jkjxj7t.mongodb.net/fleetwise?retryWrites=true&w=majority&appName=Fleet365'),
 
-  JWT_ACCESS_SECRET: z.string().min(32),
-  JWT_REFRESH_SECRET: z.string().min(32),
+  JWT_ACCESS_SECRET: z.string().min(8).default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+  JWT_REFRESH_SECRET: z.string().min(8).default('fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
-  COOKIE_SECRET: z.string().min(16),
+  COOKIE_SECRET: z.string().min(8).default('fleetwise_cookie_secret_key_12345'),
   COOKIE_SECURE: z
     .string()
     .transform((v) => v === 'true')
