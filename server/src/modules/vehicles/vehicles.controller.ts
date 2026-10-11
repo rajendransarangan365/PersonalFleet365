@@ -4,6 +4,7 @@ import { VehicleModel, AuditEventModel } from '../../models/index.js';
 import { asyncHandler } from '../../middleware/validation.middleware.js';
 import { logger } from '../../utils/logger.js';
 import type { CreateVehicleInput } from '@fleetwise/shared';
+import type { VehicleAngle } from '../../services/cloudinary.service.js';
 
 // ─── List Vehicles ────────────────────────────────────────────────────────────
 
@@ -226,3 +227,104 @@ export const deactivateVehicle = asyncHandler(async (req: Request, res: Response
   logger.info('Vehicle deactivated', { vehicleId, businessId });
   res.json({ success: true, data: { message: 'Vehicle deactivated successfully' } });
 });
+
+// ─── Cloudinary Quota ───────────────────────────────────────────────────────
+export const getCloudinaryQuotaHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const { getCloudinaryUsage } = await import('../../services/cloudinary.service.js');
+  const usage = await getCloudinaryUsage();
+  res.json({ success: true, data: usage });
+});
+
+// ─── Upload Vehicle Photo (Front, Back, Left, Right) ────────────────────────
+export const uploadVehiclePhoto = asyncHandler(async (req: Request, res: Response) => {
+  const { uploadVehicleImage } = await import('../../services/cloudinary.service.js');
+  const businessId = req.businessId!;
+  const { vehicleId } = req.params;
+  const { angle, imageBase64 } = req.body as { angle: VehicleAngle; imageBase64: string };
+
+  if (!['front', 'back', 'left', 'right'].includes(angle)) {
+    res.status(400).json({ success: false, error: { message: 'Angle must be front, back, left, or right' } });
+    return;
+  }
+
+  if (!imageBase64 || typeof imageBase64 !== 'string') {
+    res.status(400).json({ success: false, error: { message: 'Image base64 data is required' } });
+    return;
+  }
+
+  const vehicle = await VehicleModel.findOne({
+    _id: new Types.ObjectId(vehicleId),
+    businessId: new Types.ObjectId(businessId),
+    isActive: true,
+  });
+
+  if (!vehicle) {
+    res.status(404).json({ success: false, error: { message: 'Vehicle not found' } });
+    return;
+  }
+
+  const existingPhoto = vehicle.photos?.[angle as VehicleAngle];
+  const oldPublicId = existingPhoto?.publicId;
+
+  const uploaded = await uploadVehicleImage(imageBase64, vehicle._id.toString(), angle as VehicleAngle, oldPublicId);
+
+  const updateKey = `photos.${angle}`;
+  const updatedVehicle = await VehicleModel.findByIdAndUpdate(
+    vehicle._id,
+    {
+      $set: {
+        [updateKey]: {
+          url: uploaded.url,
+          publicId: uploaded.publicId,
+          uploadedAt: new Date(),
+        },
+      },
+    },
+    { new: true }
+  ).lean();
+
+  res.json({
+    success: true,
+    data: {
+      angle,
+      photo: uploaded,
+      vehicle: updatedVehicle,
+    },
+  });
+});
+
+// ─── Delete Vehicle Photo ───────────────────────────────────────────────────
+export const deleteVehiclePhoto = asyncHandler(async (req: Request, res: Response) => {
+  const { deleteVehicleImage } = await import('../../services/cloudinary.service.js');
+  const businessId = req.businessId!;
+  const { vehicleId, angle } = req.params;
+
+  if (!['front', 'back', 'left', 'right'].includes(angle!)) {
+    res.status(400).json({ success: false, error: { message: 'Angle must be front, back, left, or right' } });
+    return;
+  }
+
+  const vehicle = await VehicleModel.findOne({
+    _id: new Types.ObjectId(vehicleId),
+    businessId: new Types.ObjectId(businessId),
+    isActive: true,
+  });
+
+  if (!vehicle) {
+    res.status(404).json({ success: false, error: { message: 'Vehicle not found' } });
+    return;
+  }
+
+  const existingPhoto = vehicle.photos?.[angle as VehicleAngle];
+  if (existingPhoto?.publicId) {
+    await deleteVehicleImage(existingPhoto.publicId);
+  }
+
+  const updateKey = `photos.${angle}`;
+  await VehicleModel.findByIdAndUpdate(vehicle._id, {
+    $unset: { [updateKey]: 1 },
+  });
+
+  res.json({ success: true, data: { message: `Deleted ${angle} photo successfully` } });
+});
+

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Car, Plus, Search, Filter, Fuel, Gauge, AlertCircle,
-  CheckCircle2, Wrench, Shield, ChevronRight, X
+  CheckCircle2, Wrench, Shield, ChevronRight, X, Camera,
+  Sparkles
 } from 'lucide-react';
 import { apiGet, apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
 import { formatINR } from '@fleetwise/shared';
+import VehiclePhotoGalleryModal from '../../components/VehiclePhotoGalleryModal.js';
+import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 
 interface Vehicle {
   _id: string;
@@ -77,6 +80,8 @@ export default function VehiclesPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedVehicleForPhotos, setSelectedVehicleForPhotos] = useState<Vehicle | null>(null);
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Form state
@@ -201,13 +206,22 @@ export default function VehiclesPage() {
             Monitor odometer readings, fuel types, EMI investments, and service health
           </p>
         </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Add Vehicle
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsOnboardingModalOpen(true)}
+            className="btn-secondary flex items-center justify-center gap-1.5 text-brand-400 border-brand-500/30 hover:bg-brand-500/10 text-xs sm:text-sm py-2 px-3"
+          >
+            <Sparkles className="w-4 h-4 text-brand-400" />
+            <span>Fast Onboarding Wizard</span>
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="btn-primary flex items-center justify-center gap-2 text-xs sm:text-sm py-2 px-3"
+          >
+            <Plus className="w-4 h-4" />
+            Add Vehicle
+          </button>
+        </div>
       </div>
 
       {/* Fleet Stats Banner */}
@@ -310,11 +324,15 @@ export default function VehiclesPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                Insurance Valid
-              </span>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 mt-2">
+              <button
+                onClick={() => setSelectedVehicleForPhotos(vehicle)}
+                className="text-xs font-medium text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/20 transition-colors"
+                title="View/Upload 4-Angle Handover Proof Photos"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>4-Angle Photos Proof</span>
+              </button>
               <button className="text-xs font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1">
                 Manage <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -464,6 +482,28 @@ export default function VehiclesPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Vehicle Photo Gallery Modal */}
+      {selectedVehicleForPhotos && (
+        <VehiclePhotoGalleryModal
+          isOpen={!!selectedVehicleForPhotos}
+          onClose={() => setSelectedVehicleForPhotos(null)}
+          vehicleId={selectedVehicleForPhotos._id}
+          registrationNumber={selectedVehicleForPhotos.registrationNumber}
+          userRole="owner"
+        />
+      )}
+
+      {/* Fast Fleet Onboarding Wizard Modal */}
+      {isOnboardingModalOpen && (
+        <OnboardingWizardModal
+          isOpen={isOnboardingModalOpen}
+          onClose={() => setIsOnboardingModalOpen(false)}
+          onSuccess={() => {
+            loadVehicles();
+          }}
+        />
       )}
     </div>
   );

@@ -328,3 +328,192 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
+// ─── Send OTP via Gmail SMTP ────────────────────────────────────────────────
+export const sendOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { sendOtpEmail } = await import('../../services/mail.service.js');
+  const { email, purpose = 'REGISTER' } = req.body as {
+    email: string;
+    purpose?: 'REGISTER' | 'FORGOT_PASSWORD';
+  };
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ success: false, error: { message: 'Valid email address is required' } });
+    return;
+  }
+
+  const result = await sendOtpEmail(email, purpose);
+  res.json({ success: true, data: result });
+});
+
+// ─── Verify OTP ─────────────────────────────────────────────────────────────
+export const verifyOtpHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { verifyOtp } = await import('../../services/mail.service.js');
+  const { email, code, purpose = 'REGISTER' } = req.body as {
+    email: string;
+    code: string;
+    purpose?: 'REGISTER' | 'FORGOT_PASSWORD';
+  };
+
+  if (!email || !code) {
+    res.status(400).json({ success: false, error: { message: 'Email and 6-digit OTP code are required' } });
+    return;
+  }
+
+  const isValid = verifyOtp(email, code, purpose);
+  if (!isValid) {
+    res.status(400).json({ success: false, error: { message: 'Invalid or expired OTP. Please try again.' } });
+    return;
+  }
+
+  res.json({ success: true, data: { verified: true, message: 'OTP verified successfully' } });
+});
+
+// ─── Quick Step-by-Step Onboarding ──────────────────────────────────────────
+export const quickOnboarding = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    user: userPayload,
+    fleet: fleetPayload,
+    vehicle: vehiclePayload,
+    driver: driverPayload,
+  } = req.body;
+
+  const { BusinessModel, VehicleModel, DriverModel } = await import('../../models/index.js');
+  const { Types } = await import('mongoose');
+
+  // 1. Create User
+  const existing = await UserModel.findOne({ email: userPayload.email });
+  let user = existing;
+  if (!user) {
+    const passwordHash = await hashPassword(userPayload.password);
+    user = await UserModel.create({
+      email: userPayload.email,
+      passwordHash,
+      displayName: userPayload.displayName || fleetPayload.name,
+      emailVerified: true,
+      isActive: true,
+    });
+  }
+
+  // 2. Create Business
+  const business = await BusinessModel.create({
+    name: fleetPayload.name || 'My Fleet',
+    ownerId: user._id,
+    currency: 'INR',
+    region: fleetPayload.region || 'TN',
+    gstin: fleetPayload.gstin || '',
+    fuelPrices: {
+      petrol: 10200,
+      diesel: 9400,
+      cng: 8900,
+      electricity: 700,
+    },
+    isActive: true,
+  });
+
+  // 3. Create Business Membership
+  await BusinessMembershipModel.create({
+    businessId: business._id,
+    userId: user._id,
+    role: userPayload.role || 'business_owner',
+    permissions: ['*'],
+    isActive: true,
+  });
+
+  // 4. Create Initial Vehicle if provided
+  let vehicle = null;
+  if (vehiclePayload && vehiclePayload.registrationNumber) {
+    vehicle = await VehicleModel.create({
+      businessId: business._id,
+      registrationNumber: vehiclePayload.registrationNumber.toUpperCase(),
+      make: vehiclePayload.make || 'Maruti Suzuki',
+      model: vehiclePayload.model || 'Dzire Tour S',
+      variant: vehiclePayload.variant || 'CNG',
+      year: vehiclePayload.year || new Date().getFullYear(),
+      seatingCapacity: vehiclePayload.seatingCapacity || 4,
+      fuelType: vehiclePayload.fuelType || 'cng',
+      purchaseDate: new Date(),
+      purchasePrice: Types.Decimal128.fromString(((vehiclePayload.purchasePrice || 850000) * 100).toString()),
+      currentOdometer: vehiclePayload.currentOdometer || 0,
+      status: 'active',
+      financing: {
+        downPayment: Types.Decimal128.fromString(((vehiclePayload.downPayment || 150000) * 100).toString()),
+        loanTenureMonths: vehiclePayload.loanTenureMonths || 36,
+        interestRatePercent: vehiclePayload.interestRatePercent || 10.5,
+        monthlyEmi: Types.Decimal128.fromString(((vehiclePayload.monthlyEmi || 24000) * 100).toString()),
+      },
+      mileageConfig: {
+        claimedMileage: vehiclePayload.claimedMileage || 31.12,
+        expectedMileage: vehiclePayload.expectedMileage || 26.5,
+        adBlueLitersPer1000Km: vehiclePayload.adBlueLitersPer1000Km || 0,
+        tyreBrand: vehiclePayload.tyreBrand || 'MRF',
+        tyreChangeOdometer: 50000,
+      },
+      insurance: {
+        provider: vehiclePayload.insuranceProvider || 'Commercial Comprehensive',
+        policyNumber: vehiclePayload.insurancePolicyNumber || 'POL-FLEET-2026',
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        premium: Types.Decimal128.fromString('3200000'),
+      },
+      isActive: true,
+    });
+  }
+
+  // 5. Create Initial Driver if provided
+  let driver = null;
+  if (driverPayload && driverPayload.name) {
+    driver = await DriverModel.create({
+      businessId: business._id,
+      name: driverPayload.name,
+      phone: driverPayload.phone || '9876543210',
+      licenseNumber: driverPayload.licenseNumber || 'DL1420110012345',
+      licenseExpiry: new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000),
+      assignedVehicleId: vehicle ? vehicle._id : undefined,
+      joiningDate: new Date(),
+      monthlyWage: Types.Decimal128.fromString(((driverPayload.monthlyWage || 22000) * 100).toString()),
+      isActive: true,
+    });
+
+    if (vehicle) {
+      await VehicleModel.findByIdAndUpdate(vehicle._id, { assignedDriverId: driver._id });
+    }
+  }
+
+  // 6. Issue Tokens and sign in
+  const family = crypto.randomUUID();
+  const ipAddress = req.ip || '127.0.0.1';
+  const userAgent = (req.headers['user-agent'] as string) || 'FleetWise Onboarding';
+
+  const [accessToken, rawRefreshToken] = await Promise.all([
+    Promise.resolve(signAccessToken(user._id.toString(), user.email)),
+    issueRefreshToken(user._id.toString(), family, ipAddress, userAgent),
+  ]);
+
+  res.cookie('fw_rt', rawRefreshToken, {
+    httpOnly: true,
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAME_SITE,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/api/v1/auth',
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      accessToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+      },
+      business: {
+        id: business._id,
+        name: business.name,
+        role: userPayload.role || 'business_owner',
+      },
+      vehicle,
+      driver,
+    },
+  });
+});
+

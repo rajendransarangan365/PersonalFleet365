@@ -11,6 +11,7 @@ import ProfitSimulatorPage from './pages/simulator/ProfitSimulatorPage.js';
 import MaintenancePage from './pages/maintenance/MaintenancePage.js';
 import ReportsPage from './pages/reports/ReportsPage.js';
 import SettingsPage from './pages/settings/SettingsPage.js';
+import DriverPortalPage from './pages/driver/DriverPortalPage.js';
 import { useAuthStore } from './store/auth.store.js';
 
 // Protected layout wrapper
@@ -100,6 +101,23 @@ export default function App() {
           element={
             <ProtectedRoute>
               <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/driver-portal"
+          element={
+            <ProtectedRoute>
+              <DriverPortalPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/driver"
+          element={
+            <ProtectedRoute>
+              <DriverPortalPage />
             </ProtectedRoute>
           }
         />

@@ -3,15 +3,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, MapPin, Fuel, Wrench, TrendingUp,
   FileBarChart, Settings, Calculator, LogOut, Bell, ChevronLeft,
-  ChevronRight, Menu, X, Truck, Building2, ChevronDown, Sparkles
+  ChevronRight, Menu, X, Truck, Building2, ChevronDown, Sparkles,
+  Navigation, PlusCircle
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
 import VersionUpdateModal from '../components/VersionUpdateModal.js';
 import VersionUpdateToast from '../components/VersionUpdateToast.js';
+import OnboardingWizardModal from '../components/OnboardingWizardModal.js';
 import { CURRENT_CLIENT_VERSION } from '../services/version.service.js';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: Navigation, label: 'Driver Console & GPS', path: '/driver-portal' },
   { icon: Calculator, label: 'Simulator', path: '/simulator' },
   { icon: MapPin, label: 'Trips', path: '/trips' },
   { icon: Car, label: 'Vehicles', path: '/vehicles' },
@@ -43,6 +46,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [businessPickerOpen, setBusinessPickerOpen] = useState(false);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const activeBusiness = businesses.find((b) => b.businessId === activeBusinessId);
 
@@ -200,6 +204,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
+            {/* Quick Fleet Onboard / Registration button */}
+            <button
+              onClick={() => setIsOnboardingOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-brand-600/30 to-cyan-600/30 hover:from-brand-600/40 hover:to-cyan-600/40 text-brand-300 border border-brand-500/30 text-xs font-semibold transition-all shadow-sm"
+              title="Fast Onboarding Wizard: Add Fleet, Indian Car, Loan EMI, Mileage, Driver & OTP"
+              id="header-onboarding-button"
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-brand-400" />
+              <span>Register Fleet</span>
+            </button>
+
             {/* Version & Updates button */}
             <button
               onClick={() => setUpdateModalOpen(true)}
@@ -259,6 +274,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <VersionUpdateModal
         isOpen={updateModalOpen}
         onClose={() => setUpdateModalOpen(false)}
+      />
+
+      {/* 5-Step Fast Fleet Onboarding Wizard */}
+      <OnboardingWizardModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
       />
     </div>
   );

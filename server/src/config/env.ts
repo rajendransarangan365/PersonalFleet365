@@ -27,15 +27,25 @@ const EnvSchema = z.object({
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().int().default(465),
   SMTP_SECURE: z
     .string()
     .transform((v) => v === 'true')
-    .default('false'),
+    .default('true'),
+  SMTP_SERVICE: z.string().default('gmail'),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().default('FleetWise <no-reply@fleetwise.app>'),
+  SMTP_MAIL: z.string().default('rightsight365@gmail.com'),
+  SMTP_PASSWORD: z.string().default(''),
+  TO_ME_EMAIL: z.string().default('sarangan365@gmail.com'),
+  TO_ME_MOBILE: z.string().default('1234567890'),
+  EMAIL_FROM: z.string().default('FleetWise <rightsight365@gmail.com>'),
+
+  CLOUDINARY_CLOUD_NAME: z.string().default('dh9vdxaqv'),
+  CLOUDINARY_API_KEY: z.string().default('564923498847162'),
+  CLOUDINARY_API_SECRET: z.string().default('FV3KegyCL_IVUW4wxlHAzKBxmxI'),
+  GOOGLE_CLIENT_ID: z.string().default(''),
 
   UPLOAD_MAX_SIZE_MB: z.coerce.number().int().min(1).max(50).default(10),
   UPLOAD_DIR: z.string().default('./uploads'),

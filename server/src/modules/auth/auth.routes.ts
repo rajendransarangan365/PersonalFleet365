@@ -18,6 +18,9 @@ router.post('/signin', authLimiter, validate(SignInSchema), AuthController.signI
 router.post('/refresh', AuthController.refreshTokens);
 router.post('/forgot-password', resetLimiter, validate(ForgotPasswordSchema), AuthController.forgotPassword);
 router.post('/reset-password', resetLimiter, validate(ResetPasswordSchema), AuthController.resetPassword);
+router.post('/send-otp', authLimiter, AuthController.sendOtp);
+router.post('/verify-otp', authLimiter, AuthController.verifyOtpHandler);
+router.post('/quick-onboarding', authLimiter, AuthController.quickOnboarding);
 router.get('/verify-email', AuthController.verifyEmail);
 
 // Protected routes

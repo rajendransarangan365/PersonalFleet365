@@ -117,26 +117,34 @@ export default function ExpensesPage() {
     vendor: '',
     paymentMethod: 'upi',
     date: new Date().toISOString().split('T')[0],
+    tyreBrand: 'MRF ZVTS',
+    tyreCount: 2,
+    tyreOdometer: 42500,
   });
 
-  // New Fuel form
+  // New Fuel form with Diesel AdBlue DEF
   const [fuelForm, setFuelForm] = useState({
     vehicleRegistration: 'TN01BV4589',
-    fuelType: 'cng' as const,
+    fuelType: 'cng' as 'cng' | 'diesel' | 'petrol' | 'electric',
     odometer: 42250,
     quantity: 8.0,
     rateINR: 89,
     date: new Date().toISOString().split('T')[0],
+    adBlueLitres: 0,
+    adBlueRateINR: 75,
   });
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
+    const vendorNote = expenseForm.category === 'tyre' 
+      ? `${expenseForm.vendor || 'Tyre Centre'} (${expenseForm.tyreCount}x ${expenseForm.tyreBrand} @ ${expenseForm.tyreOdometer} km)`
+      : expenseForm.vendor || 'General Vendor';
     const newExp: ExpenseItem = {
       _id: 'e_' + Date.now(),
       vehicleRegistration: expenseForm.vehicleRegistration,
       category: expenseForm.category,
       amount: expenseForm.amountINR * 100,
-      vendor: expenseForm.vendor || 'General Vendor',
+      vendor: vendorNote,
       paymentMethod: expenseForm.paymentMethod,
       date: expenseForm.date,
     };
@@ -413,6 +421,50 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
+              {expenseForm.category === 'tyre' && (
+                <div className="p-3 bg-slate-800/40 rounded-xl border border-slate-700/60 space-y-3 animate-fade-in">
+                  <div className="text-xs font-semibold text-slate-300">Tyre Replacement Details</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="form-label text-[11px]">Tyre Brand</label>
+                      <select
+                        value={expenseForm.tyreBrand}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, tyreBrand: e.target.value })}
+                        className="form-input text-xs"
+                      >
+                        <option value="MRF ZVTS">MRF ZVTS</option>
+                        <option value="Apollo Amazer">Apollo Amazer</option>
+                        <option value="CEAT FuelSmarrt">CEAT FuelSmarrt</option>
+                        <option value="JK Tyre Vectra">JK Tyre Vectra</option>
+                        <option value="Bridgestone B290">Bridgestone B290</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label text-[11px]">Tyre Count</label>
+                      <select
+                        value={expenseForm.tyreCount}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, tyreCount: Number(e.target.value) })}
+                        className="form-input text-xs"
+                      >
+                        <option value="1">1 Tyre</option>
+                        <option value="2">2 Tyres (Front / Rear Pair)</option>
+                        <option value="4">4 Tyres (Full Set)</option>
+                        <option value="5">5 Tyres (With Spare)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label text-[11px]">Odometer (km)</label>
+                      <input
+                        type="number"
+                        value={expenseForm.tyreOdometer}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, tyreOdometer: Number(e.target.value) })}
+                        className="form-input text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="form-label">Vendor / Workshop Name</label>
                 <input
@@ -522,10 +574,44 @@ export default function ExpensesPage() {
                 </div>
               </div>
 
+              {fuelForm.fuelType === 'diesel' && (
+                <div className="p-3 bg-blue-950/20 border border-blue-500/30 rounded-xl space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-blue-300">Diesel Exhaust Fluid (AdBlue) Top-up</span>
+                    <span className="text-[10px] text-slate-400">Optional BS6 DEF</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="form-label text-[11px]">AdBlue Litres</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        value={fuelForm.adBlueLitres}
+                        onChange={(e) => setFuelForm({ ...fuelForm, adBlueLitres: Number(e.target.value) })}
+                        className="form-input text-xs"
+                        placeholder="e.g. 5.0"
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label text-[11px]">AdBlue Rate (₹/L)</label>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={fuelForm.adBlueRateINR}
+                        onChange={(e) => setFuelForm({ ...fuelForm, adBlueRateINR: Number(e.target.value) })}
+                        className="form-input text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="p-3 bg-slate-800/60 rounded-xl flex items-center justify-between text-xs">
                 <span className="text-slate-400">Total Refill Amount:</span>
                 <span className="font-bold text-amber-400 text-sm">
-                  ₹{(fuelForm.quantity * fuelForm.rateINR).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  ₹{(fuelForm.quantity * fuelForm.rateINR + fuelForm.adBlueLitres * fuelForm.adBlueRateINR).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                 </span>
               </div>
 

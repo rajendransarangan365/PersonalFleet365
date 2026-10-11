@@ -2,11 +2,12 @@ import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { SignInSchema, type SignInInput } from '@fleetwise/shared';
 import { apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
 import type { User } from '@fleetwise/shared';
+import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 
 export default function SignInPage() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const {
     register,
@@ -164,6 +166,17 @@ export default function SignInPage() {
               Create account
             </Link>
           </p>
+
+          <div className="mt-4 pt-4 border-t border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => setIsOnboardingOpen(true)}
+              className="w-full btn-secondary text-xs py-2.5 flex items-center justify-center gap-2 text-brand-400 border-brand-500/30 hover:bg-brand-500/10 shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-brand-400" />
+              <span>Easy Step-by-Step Fleet Onboarding</span>
+            </button>
+          </div>
         </div>
 
         {/* Footer */}
@@ -171,6 +184,12 @@ export default function SignInPage() {
           © {new Date().getFullYear()} FleetWise. All rights reserved.
         </p>
       </div>
+
+      <OnboardingWizardModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        onSuccess={() => navigate('/dashboard')}
+      />
     </div>
   );
 }

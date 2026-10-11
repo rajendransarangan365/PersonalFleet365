@@ -227,6 +227,25 @@ export interface IVehicle {
     number: string;
     expiryDate: Date;
   }>;
+  photos?: {
+    front?: { url: string; publicId: string; uploadedAt: Date };
+    back?: { url: string; publicId: string; uploadedAt: Date };
+    left?: { url: string; publicId: string; uploadedAt: Date };
+    right?: { url: string; publicId: string; uploadedAt: Date };
+  };
+  financing?: {
+    downPayment: Types.Decimal128;
+    loanTenureMonths: number;
+    interestRatePercent: number;
+    monthlyEmi: Types.Decimal128;
+  };
+  mileageConfig?: {
+    claimedMileage: number;
+    expectedMileage: number;
+    adBlueLitersPer1000Km?: number;
+    tyreBrand?: string;
+    tyreChangeOdometer?: number;
+  };
   notes?: string;
   isActive: boolean;
   createdAt: Date;
@@ -281,6 +300,25 @@ const VehicleSchema = new Schema<IVehicle>(
         expiryDate: Date,
       },
     ],
+    photos: {
+      front: { url: String, publicId: String, uploadedAt: Date },
+      back: { url: String, publicId: String, uploadedAt: Date },
+      left: { url: String, publicId: String, uploadedAt: Date },
+      right: { url: String, publicId: String, uploadedAt: Date },
+    },
+    financing: {
+      downPayment: Schema.Types.Decimal128,
+      loanTenureMonths: Number,
+      interestRatePercent: Number,
+      monthlyEmi: Schema.Types.Decimal128,
+    },
+    mileageConfig: {
+      claimedMileage: Number,
+      expectedMileage: Number,
+      adBlueLitersPer1000Km: Number,
+      tyreBrand: String,
+      tyreChangeOdometer: Number,
+    },
     notes: { type: String, maxlength: 1000 },
     isActive: { type: Boolean, default: true },
   },
