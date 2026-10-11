@@ -15,7 +15,10 @@
     "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
     "type-check": "npm run type-check --workspace=client && npm run type-check --workspace=server",
     "version:bump": "node scripts/bump-version.js",
-    "release": "node scripts/release.js"
+    "release": "node scripts/release.js",
+    "dev:all": "node scripts/dev-all.js",
+    "adb:wireless": "node scripts/adb-wireless.js",
+    "adb:install": "node scripts/adb-install.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

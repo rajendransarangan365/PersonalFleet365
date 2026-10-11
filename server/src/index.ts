@@ -9,8 +9,8 @@ async function bootstrap() {
   const app = createApp();
   const port = env.PORT;
 
-  const server = app.listen(port, () => {
-    logger.info(`🚀 FleetWise API running on port ${port} [${env.NODE_ENV}]`);
+  const server = app.listen(port, '0.0.0.0', () => {
+    logger.info(`🚀 FleetWise API running on port ${port} (0.0.0.0) [${env.NODE_ENV}]`);
   });
 
   // Graceful shutdown

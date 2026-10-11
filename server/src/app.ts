@@ -59,6 +59,16 @@ export function createApp() {
         // Allow requests with no origin (mobile apps, curl) in dev
         if (!origin && env.NODE_ENV !== 'production') return callback(null, true);
         if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        // Allow LAN / mobile Wi-Fi origins in development
+        if (env.NODE_ENV !== 'production' && origin) {
+          if (
+            /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin) ||
+            origin.startsWith('capacitor://') ||
+            origin.startsWith('ionic://')
+          ) {
+            return callback(null, true);
+          }
+        }
         return callback(new Error(`CORS: Origin ${origin} not allowed`));
       },
       credentials: true,
