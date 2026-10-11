@@ -4,21 +4,39 @@
   "description": "Commercial fleet management, vehicle condition inspection proof, GPS trip tracker, loan EMI & AdBlue logs",
   "icons": [
     {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
       "src": "/logo.svg",
       "type": "image/svg+xml",
       "sizes": "192x192 512x512",
       "purpose": "any maskable"
     },
     {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "64x64 32x32",
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "32x32",
       "purpose": "any"
     }
   ],
   "start_url": "/dashboard",
-  "background_color": "#020617",
-  "theme_color": "#0f172a",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
   "display": "standalone",
   "orientation": "portrait-primary",
   "categories": ["business", "finance", "productivity", "navigation"]
