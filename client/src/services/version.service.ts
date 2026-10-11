@@ -28,7 +28,7 @@ export interface VersionInfo {
   serverTimestamp?: string;
 }
 
-export const CURRENT_CLIENT_VERSION = '1.0.0';
+export const CURRENT_CLIENT_VERSION = '1.0.1';
 export const CURRENT_BUILD_NUMBER = 100;
 const STORAGE_KEY_LAST_SEEN_VERSION = 'fleetwise_last_seen_version';
 

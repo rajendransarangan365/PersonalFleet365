@@ -1,13 +1,30 @@
 {
-  "version": "1.0.0",
-  "buildNumber": 100,
+  "version": "1.0.1",
+  "buildNumber": 101,
   "releaseDate": "2026-10-11",
   "minSupportedVersion": "1.0.0",
-  "latestVersion": "1.0.0",
+  "latestVersion": "1.0.1",
   "hasUpdate": false,
   "apkDownloadUrl": "https://github.com/rajendransarangan365/PersonalFleet365-release/releases/latest/download/app-debug.apk",
   "githubReleaseUrl": "https://github.com/rajendransarangan365/PersonalFleet365-release/releases",
   "changelog": [
+    {
+      "version": "1.0.1",
+      "date": "2026-10-11",
+      "title": "FleetWise v1.0.1 Maintenance & Feature Update",
+      "isCurrent": true,
+      "highlights": "Automated release v1.0.1 with latest performance improvements and bug fixes.",
+      "categories": {
+        "features": [],
+        "mobile": [],
+        "improvements": [
+          "General stability and performance optimizations across web and APK builds"
+        ],
+        "fixes": [
+          "Routine security and dependency updates"
+        ]
+      }
+    },
     {
       "version": "1.0.0",
       "date": "2026-10-11",

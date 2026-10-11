@@ -1,6 +1,6 @@
 {
   "name": "fleetwise",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "FleetWise — Taxi Business Intelligence, Fleet Management & Profit Simulator",
   "workspaces": [
@@ -21,6 +21,9 @@
     "adb:install": "node scripts/adb-install.js"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
     "concurrently": "^8.2.2"
   },
   "engines": {
