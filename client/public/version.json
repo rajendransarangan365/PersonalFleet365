@@ -1,13 +1,34 @@
 {
-  "version": "1.0.1",
-  "buildNumber": 101,
+  "version": "1.0.2",
+  "buildNumber": 102,
   "releaseDate": "2026-10-11",
   "minSupportedVersion": "1.0.0",
-  "latestVersion": "1.0.1",
+  "latestVersion": "1.0.2",
   "hasUpdate": false,
   "apkDownloadUrl": "https://github.com/rajendransarangan365/PersonalFleet365-release/releases/latest/download/app-debug.apk",
   "githubReleaseUrl": "https://github.com/rajendransarangan365/PersonalFleet365-release/releases",
   "changelog": [
+    {
+      "version": "1.0.2",
+      "date": "2026-10-11",
+      "title": "Fleet365 v1.0.2 Release",
+      "isCurrent": true,
+      "highlights": "Performance updates, latest fleet enhancements, and standalone Android APK",
+      "categories": {
+        "features": [
+          "Performance updates, latest fleet enhancements, and standalone Android APK"
+        ],
+        "mobile": [
+          "Standalone Android APK compiled and attached to GitHub Release"
+        ],
+        "improvements": [
+          "PWA Web App install support & modern Fleet365 brand styling"
+        ],
+        "fixes": [
+          "Continuous stability & security updates"
+        ]
+      }
+    },
     {
       "version": "1.0.1",
       "date": "2026-10-11",

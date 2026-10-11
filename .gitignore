@@ -4,10 +4,11 @@ node_modules/
 .pnp.js
 
 # Build outputs
-dist/
-build/
+/dist/
 client/dist/
 server/dist/
+!shared/dist/
+!shared/dist/**
 android/app/build/
 
 # Environment files

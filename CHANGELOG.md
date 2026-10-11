@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2] - 2026-10-11
+
+### 🚀 Added / Changed
+- Performance updates, latest fleet enhancements, and standalone Android APK
+- Standalone Android APK build compiled and uploaded to GitHub Releases.
+- Modern Fleet365 PWA installation support.
+
+
 All notable changes to the **FleetWise** platform will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
