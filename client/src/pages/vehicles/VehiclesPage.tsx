@@ -570,6 +570,7 @@ export default function VehiclesPage() {
         <InAppCallModal
           isOpen={Boolean(activeCallContact)}
           onClose={() => setActiveCallContact(null)}
+          targetContact={activeCallContact}
           callerName={activeCallContact.name}
           callerRole={activeCallContact.role}
           targetPhone={activeCallContact.phone}

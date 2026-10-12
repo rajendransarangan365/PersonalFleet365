@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   MapPin, Navigation, Car, Phone, MessageSquare, Shield,
   Clock, CheckCircle2, Star, Sparkles, AlertCircle, ExternalLink,
-  ChevronRight, Radio, RefreshCw, Headphones, UserCheck, ArrowRight
+  ChevronRight, Radio, RefreshCw, Headphones, UserCheck, ArrowRight, LogOut
 } from 'lucide-react';
 import InAppCallModal from '../../components/InAppCallModal.js';
 import InAppChatModal from '../../components/InAppChatModal.js';
@@ -10,6 +11,9 @@ import IncomingCallModal from '../../components/IncomingCallModal.js';
 import LiveDemoPersonaBar from '../../components/LiveDemoPersonaBar.js';
 import FleetLogo from '../../components/FleetLogo.js';
 import { useContactsStore, type FleetContact } from '../../store/contacts.store.js';
+import { apiGet, apiPost, apiPatch } from '../../services/api.js';
+import { getSocket, registerCurrentUser } from '../../services/socket.client.js';
+import { useAuthStore } from '../../store/auth.store.js';
 
 // Pre-defined Indian commercial landmarks (Chennai)
 const LANDMARKS = [
@@ -66,6 +70,8 @@ const CAB_TIERS: CabTier[] = [
 ];
 
 export default function CustomerPortalPage() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
   const { contacts } = useContactsStore();
   const drivers = contacts.filter((c) => c.role === 'driver');
   const telecallers = contacts.filter((c) => c.role === 'telecaller');
@@ -78,12 +84,20 @@ export default function CustomerPortalPage() {
   // Ride Lifecycle
   const [rideState, setRideState] = useState<'idle' | 'searching' | 'assigned' | 'arrived' | 'on_trip' | 'completed'>('idle');
   const [assignedDriver, setAssignedDriver] = useState<FleetContact | null>(null);
+  const [currentBooking, setCurrentBooking] = useState<any>(null);
   const [rideOtp, setRideOtp] = useState('8492');
   const [currentSpeed, setCurrentSpeed] = useState(0);
+
+  // Problem Reporting Modal
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [issueText, setIssueText] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportedSuccess, setReportedSuccess] = useState(false);
 
   // In-App Calls & Chats
   const [activeCallContact, setActiveCallContact] = useState<FleetContact | null>(null);
   const [activeChatContact, setActiveChatContact] = useState<FleetContact | null>(null);
+  const [isIncomingAnswered, setIsIncomingAnswered] = useState(false);
 
   // Estimated distance and fare calculation
   const estDistanceKm = 16.4;
@@ -93,116 +107,116 @@ export default function CustomerPortalPage() {
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
 
-  // Initialize Free OpenStreetMap via Leaflet
+  // Listen to Socket.IO for live driver assignments & updates
   useEffect(() => {
-    let isMounted = true;
+    registerCurrentUser();
+    const socket = getSocket();
 
-    const initMap = async () => {
-      if (typeof window === 'undefined' || !mapContainerRef.current) return;
-
-      try {
-        const L = await import('leaflet');
-
-        // Fix leaflet default icon URLs
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        });
-
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-        }
-
-        const map = L.map(mapContainerRef.current).setView([13.0067, 80.2200], 12);
-        mapInstanceRef.current = map;
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(map);
-
-        // Pickup Marker
-        L.marker([12.9941, 80.1709])
-          .addTo(map)
-          .bindPopup(`<b>Pickup:</b> ${pickup}`)
-          .openPopup();
-
-        // Dropoff Marker
-        L.marker([12.9892, 80.2483])
-          .addTo(map)
-          .bindPopup(`<b>Dropoff:</b> ${dropoff}`);
-
-        // Roaming Taxis with live animated coordinates
-        const taxiPositions = [
-          { lat: 12.998, lng: 80.180, plate: 'TN01BV4589', name: 'Tour S CNG', speed: 52 },
-          { lat: 13.010, lng: 80.215, plate: 'TN09CE2311', name: 'Aura CNG', speed: 46 },
-          { lat: 12.985, lng: 80.230, plate: 'TN02DF7812', name: 'Tigor EV', speed: 38 },
-          { lat: 13.030, lng: 80.245, plate: 'TN10AK9944', name: 'Innova Crysta', speed: 0 },
-        ];
-
-        taxiPositions.forEach((taxi) => {
-          const taxiIcon = L.divIcon({
-            className: 'custom-taxi-marker',
-            html: `
-              <div style="background: #0f172a; border: 2px solid #06b6d4; border-radius: 9999px; padding: 4px; box-shadow: 0 4px 12px rgba(6,182,212,0.5); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: #22d3ee;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2.1 11.1 2 11.5 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
-              </div>
-            `,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
+    const handleBookingUpdate = (updated: any) => {
+      if (currentBooking && (updated.bookingId === currentBooking.bookingId || updated._id === currentBooking._id)) {
+        setCurrentBooking(updated);
+        if (updated.assignedDriverName) {
+          setAssignedDriver({
+            id: updated.assignedDriverId || 'drv-01',
+            name: updated.assignedDriverName,
+            role: 'driver' as const,
+            phone: updated.assignedDriverPhone || '+91 98401 23456',
+            vehiclePlate: updated.vehiclePlate || 'TN01BV4589',
+            vehicleModel: updated.vehicleModel || selectedTier.model,
+            status: 'online' as const,
+            speedKmH: 52,
+            rating: 4.9,
           });
-
-          const m = L.marker([taxi.lat, taxi.lng], { icon: taxiIcon })
-            .addTo(map)
-            .bindPopup(`
-              <div style="font-family: sans-serif; font-size: 12px; color: #0f172a;">
-                <b>🚕 ${taxi.plate}</b><br/>
-                ${taxi.name}<br/>
-                <b>Speed:</b> ${taxi.speed} km/h (Live GPS)
-              </div>
-            `);
-          markersRef.current.push(m);
-        });
-      } catch (err) {
-        console.error('Error rendering Leaflet map:', err);
+        }
+        if (updated.status === 'driver_assigned') {
+          setRideState('assigned');
+        } else if (updated.status === 'driver_arrived') {
+          setRideState('arrived');
+        } else if (updated.status === 'in_progress') {
+          setRideState('on_trip');
+        } else if (updated.status === 'completed') {
+          setRideState('completed');
+        }
       }
     };
 
-    void initMap();
+    socket.on('booking:updated', handleBookingUpdate);
+    socket.on('booking:driver_assigned', handleBookingUpdate);
+    socket.on('booking:status_changed', handleBookingUpdate);
 
     return () => {
-      isMounted = false;
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+      socket.off('booking:updated', handleBookingUpdate);
+      socket.off('booking:driver_assigned', handleBookingUpdate);
+      socket.off('booking:status_changed', handleBookingUpdate);
     };
-  }, [pickup, dropoff]);
+  }, [currentBooking, selectedTier]);
 
-  // Handle Taxi Booking
-  const handleBookRide = () => {
+  // Handle Taxi Booking (Saves to real DB & broadcasts via socket)
+  const handleBookRide = async () => {
     setRideState('searching');
+    setReportedSuccess(false);
 
-    setTimeout(() => {
-      const nearestDriver = drivers[0] || {
-        id: 'drv-01',
-        name: 'Karthik Raja',
-        role: 'driver' as const,
-        phone: '+91 98401 23456',
-        vehiclePlate: 'TN01BV4589',
+    try {
+      const auth = useAuthStore.getState();
+      const user = auth.user;
+      const res = await apiPost<any>('/app/bookings', {
+        customerId: (user as any)?.id || (user as any)?._id || 'cust-01',
+        customerName: user?.displayName || 'Ananya Sharma (Passenger)',
+        customerPhone: '+91 99620 12345',
+        pickupLocation: pickup,
+        dropoffLocation: dropoff,
+        cabTier: selectedTier.id,
+        cabTierName: selectedTier.name,
         vehicleModel: selectedTier.model,
-        status: 'on_trip' as const,
-        speedKmH: 52,
-        rating: 4.9,
-      };
+        estimatedDistanceKm: estDistanceKm,
+        estimatedFare: estFare,
+        baseFare: selectedTier.baseFare,
+      });
 
-      setAssignedDriver(nearestDriver);
-      setRideOtp(String(Math.floor(1000 + Math.random() * 9000)));
-      setCurrentSpeed(52);
-      setRideState('assigned');
-    }, 2400);
+      setCurrentBooking(res);
+      setRideOtp(res.otp);
+
+      const socket = getSocket();
+      socket.emit('booking:new', res);
+
+      // If driver is immediately assigned by system
+      if (res.assignedDriverName) {
+        setAssignedDriver({
+          id: res.assignedDriverId || 'drv-01',
+          name: res.assignedDriverName,
+          role: 'driver' as const,
+          phone: res.assignedDriverPhone || '+91 98401 23456',
+          vehiclePlate: res.vehiclePlate || 'TN01BV4589',
+          vehicleModel: res.vehicleModel,
+          status: 'online' as const,
+          speedKmH: 52,
+          rating: 4.9,
+        });
+        setRideState('assigned');
+      }
+    } catch (err) {
+      console.error('Error creating real booking', err);
+    }
+  };
+
+  // Report Problem to 24x7 Support Desk & Owner
+  const handleReportProblem = async () => {
+    if (!currentBooking || !issueText.trim()) return;
+    setIsReporting(true);
+    try {
+      await apiPost(`/app/bookings/${currentBooking.bookingId || currentBooking._id}/report-issue`, {
+        issueDetails: issueText.trim(),
+      });
+      setReportedSuccess(true);
+      setTimeout(() => {
+        setIsReportModalOpen(false);
+        setIssueText('');
+      }, 1500);
+    } catch (err) {
+      console.error('Error reporting problem', err);
+    } finally {
+      setIsReporting(false);
+    }
   };
 
   const openGoogleMapsDirections = () => {
@@ -216,10 +230,10 @@ export default function CustomerPortalPage() {
       {/* Top Header */}
       <header className="h-16 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <FleetLogo size="sm" showText subtitle="Passenger Cab Booking" />
+          <FleetLogo size="sm" showText subtitle="Passenger Ride Portal" role="customer" />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           {/* Helpline Telecaller button */}
           <button
             onClick={() => {
@@ -236,15 +250,34 @@ export default function CustomerPortalPage() {
             title="Connect with 24x7 Customer Support Telecaller"
           >
             <Headphones className="w-4 h-4 text-cyan-400" />
-            <span className="hidden sm:inline">24x7 Helpline Support</span>
+            <span className="hidden sm:inline">24x7 Helpline</span>
           </button>
 
-          <a
-            href="/dashboard"
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors"
-          >
-            Owner Portal
-          </a>
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-300 font-medium hidden md:inline bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60">
+                {user.displayName} ({((user as any).role || 'customer').replace('_', ' ')})
+              </span>
+              <button
+                onClick={async () => {
+                  await logout();
+                  navigate('/auth/signin');
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 text-xs font-medium border border-slate-700 hover:border-rose-500/30 transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign out</span>
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/auth/signin"
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold border border-amber-500/30 transition-colors shadow-sm"
+            >
+              Customer Sign In
+            </Link>
+          )}
         </div>
       </header>
 
@@ -468,6 +501,15 @@ export default function CustomerPortalPage() {
                 <ExternalLink className="w-4 h-4 text-brand-400" />
                 <span>Navigate using Google Maps</span>
               </button>
+
+              {/* Report Problem / 24x7 Helpline Support Button */}
+              <button
+                onClick={() => setIsReportModalOpen(true)}
+                className="w-full py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-white text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <AlertCircle className="w-4 h-4 text-rose-400" />
+                <span>🆘 Report Problem to 24x7 Support Team</span>
+              </button>
             </div>
           )}
 
@@ -506,11 +548,16 @@ export default function CustomerPortalPage() {
       {activeCallContact && (
         <InAppCallModal
           isOpen={Boolean(activeCallContact)}
-          onClose={() => setActiveCallContact(null)}
+          onClose={() => {
+            setActiveCallContact(null);
+            setIsIncomingAnswered(false);
+          }}
+          targetContact={activeCallContact}
           callerName={activeCallContact.name}
           callerRole={activeCallContact.role}
           targetPhone={activeCallContact.phone}
           vehiclePlate={activeCallContact.vehiclePlate}
+          isIncomingAnswered={isIncomingAnswered}
         />
       )}
 
@@ -520,7 +567,10 @@ export default function CustomerPortalPage() {
           isOpen={Boolean(activeChatContact)}
           onClose={() => setActiveChatContact(null)}
           contact={activeChatContact}
-          onStartCall={(contact) => setActiveCallContact(contact)}
+          onStartCall={(contact) => {
+            setActiveCallContact(contact);
+            setIsIncomingAnswered(false);
+          }}
         />
       )}
 
@@ -535,8 +585,70 @@ export default function CustomerPortalPage() {
             vehiclePlate: session.vehiclePlate,
             status: 'online',
           });
+          setIsIncomingAnswered(true);
         }}
       />
+
+      {/* 24x7 Customer Support Problem Report Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2 text-rose-400">
+                <AlertCircle className="w-5 h-5" />
+                <h3 className="text-sm font-bold text-white">Report Ride Issue / Help</h3>
+              </div>
+              <button
+                onClick={() => setIsReportModalOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {reportedSuccess ? (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center space-y-2 text-xs text-emerald-300">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                <p className="font-bold text-white text-sm">Issue Escalated Successfully</p>
+                <p className="text-[11px] text-slate-300">
+                  Fleet 365 24x7 Help Desk and the company Fleet Owner have been notified. A support agent will assist you shortly.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-300">
+                  Please describe the problem you are facing with ride <b>#{currentBooking?.bookingId || 'Active'}</b>. Our support desk will intervene immediately:
+                </p>
+
+                <textarea
+                  rows={3}
+                  value={issueText}
+                  onChange={(e) => setIssueText(e.target.value)}
+                  placeholder="e.g. Driver is not moving, wrong pickup location, or fare dispute..."
+                  className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                />
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => setIsReportModalOpen(false)}
+                    className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReportProblem}
+                    disabled={!issueText.trim() || isReporting}
+                    className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold shadow-md shadow-rose-600/30 flex items-center justify-center gap-1.5"
+                  >
+                    <Headphones className="w-3.5 h-3.5" />
+                    <span>Send to Support</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Live Testing Persona Switcher Bar */}
       <LiveDemoPersonaBar />

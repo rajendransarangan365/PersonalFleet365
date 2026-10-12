@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout.js';
 import SignInPage from './pages/auth/SignInPage.js';
 import SignUpPage from './pages/auth/SignUpPage.js';
@@ -13,16 +13,96 @@ import ReportsPage from './pages/reports/ReportsPage.js';
 import SettingsPage from './pages/settings/SettingsPage.js';
 import DriverPortalPage from './pages/driver/DriverPortalPage.js';
 import CustomerPortalPage from './pages/customer/CustomerPortalPage.js';
+import TaxiBookingsPage from './pages/bookings/TaxiBookingsPage.js';
 import ErrorBoundary from './components/ErrorBoundary.js';
 import { useAuthStore } from './store/auth.store.js';
 
-// Protected layout wrapper
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore();
+// Protected layout wrapper with Role-Based Access Control (RBAC)
+function ProtectedRoute({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}) {
+  const { user, businesses, activeBusinessId } = useAuthStore();
+  const location = useLocation();
 
-  // If user is logged out in production, redirect to signin.
-  // In development/local preview mode, allow demo access so the user can interact immediately.
+  // 1. Mandatory Authentication Check: If not logged in, redirect directly to Sign In
+  if (!user) {
+    return <Navigate to="/auth/signin" state={{ from: location }} replace />;
+  }
+
+  const userRole =
+    (user as any)?.role ||
+    businesses.find((b) => b.businessId === activeBusinessId)?.role ||
+    businesses[0]?.role ||
+    'fleet_owner';
+
+  // Role Boundary 1: Driver can ONLY access /driver-portal, /taxi-bookings, /vehicles
+  if (userRole === 'driver') {
+    const driverAllowed = ['/driver-portal', '/taxi-bookings', '/vehicles', '/driver'];
+    const isAllowed = driverAllowed.some((path) => location.pathname.startsWith(path));
+    if (!isAllowed) {
+      return <Navigate to="/driver-portal" replace />;
+    }
+  }
+
+  // Role Boundary 2: Customer can ONLY access /bookings, /customer, /book, /taxi-bookings
+  if (userRole === 'customer') {
+    const customerAllowed = ['/bookings', '/customer', '/book', '/taxi-bookings'];
+    const isAllowed = customerAllowed.some((path) => location.pathname.startsWith(path));
+    if (!isAllowed) {
+      return <Navigate to="/bookings" replace />;
+    }
+  }
+
+  // Role Boundary 3: Telecaller can access /taxi-bookings, /driver-portal, /customer, /bookings
+  if (userRole === 'telecaller' || userRole === 'support') {
+    const telecallerAllowed = ['/taxi-bookings', '/driver-portal', '/customer', '/bookings'];
+    const isAllowed = telecallerAllowed.some((path) => location.pathname.startsWith(path));
+    if (!isAllowed) {
+      return <Navigate to="/taxi-bookings" replace />;
+    }
+  }
+
+  // Role Boundary 4: Operations Manager cannot access finance or profit simulator
+  if (userRole === 'fleet_manager' || userRole === 'operations_manager') {
+    const managerBlocked = ['/finance', '/simulator'];
+    const isBlocked = managerBlocked.some((path) => location.pathname.startsWith(path));
+    if (isBlocked) {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  // Role Boundary 5: Explicit allowedRoles check if provided
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+    if (userRole === 'driver') return <Navigate to="/driver-portal" replace />;
+    if (userRole === 'customer') return <Navigate to="/bookings" replace />;
+    if (userRole === 'telecaller') return <Navigate to="/taxi-bookings" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <AppLayout>{children}</AppLayout>;
+}
+
+// Smart Role-Aware Home Redirection
+function RoleBasedHomeRedirect() {
+  const { user, businesses, activeBusinessId } = useAuthStore();
+  if (!user) {
+    return <Navigate to="/auth/signin" replace />;
+  }
+
+  const userRole =
+    (user as any)?.role ||
+    businesses.find((b) => b.businessId === activeBusinessId)?.role ||
+    businesses[0]?.role ||
+    'fleet_owner';
+
+  if (userRole === 'driver') return <Navigate to="/driver-portal" replace />;
+  if (userRole === 'customer') return <Navigate to="/bookings" replace />;
+  if (userRole === 'telecaller' || userRole === 'support') return <Navigate to="/taxi-bookings" replace />;
+  return <Navigate to="/dashboard" replace />;
 }
 
 export default function App() {
@@ -37,9 +117,20 @@ export default function App() {
         <Route path="/demo" element={<SignInPage devMode />} />
         <Route path="/auth/dev" element={<SignInPage devMode />} />
 
-        {/* Public / Customer Booking Portal */}
+        {/* Dedicated Customer Taxi Ride Portal */}
+        <Route path="/bookings" element={<CustomerPortalPage />} />
         <Route path="/customer" element={<CustomerPortalPage />} />
         <Route path="/book" element={<CustomerPortalPage />} />
+
+        {/* Taxi Bookings & Dispatch Center (Owner, Manager, Call Center) */}
+        <Route
+          path="/taxi-bookings"
+          element={
+            <ProtectedRoute>
+              <TaxiBookingsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Protected app routes */}
         <Route
@@ -132,9 +223,9 @@ export default function App() {
           }
         />
 
-        {/* Default route */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Default route (Role-Aware) */}
+        <Route path="/" element={<RoleBasedHomeRedirect />} />
+        <Route path="*" element={<RoleBasedHomeRedirect />} />
       </Routes>
     </BrowserRouter>
   </ErrorBoundary>

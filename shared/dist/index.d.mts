@@ -20,8 +20,11 @@ interface TenantDocument extends BaseDocument {
     businessId: string;
 }
 interface User extends BaseDocument {
+    id?: string;
     email: string;
     displayName: string;
+    role?: UserRole;
+    phone?: string;
     emailVerified: boolean;
     mfaEnabled: boolean;
     isActive: boolean;

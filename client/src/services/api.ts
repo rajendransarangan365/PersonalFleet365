@@ -44,15 +44,26 @@ export const apiClient: AxiosInstance = axios.create({
 
 // ─── Access token management ──────────────────────────────────────────────────
 
-let accessToken: string | null = null;
+let accessToken: string | null =
+  typeof window !== 'undefined' ? localStorage.getItem('fw_access_token') : null;
 let isRefreshing = false;
 let refreshQueue: Array<(token: string | null) => void> = [];
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
+  if (typeof window !== 'undefined') {
+    if (token) {
+      localStorage.setItem('fw_access_token', token);
+    } else {
+      localStorage.removeItem('fw_access_token');
+    }
+  }
 }
 
 export function getAccessToken(): string | null {
+  if (!accessToken && typeof window !== 'undefined') {
+    accessToken = localStorage.getItem('fw_access_token');
+  }
   return accessToken;
 }
 

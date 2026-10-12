@@ -103,9 +103,10 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'fw-auth',
       partialize: (state) => ({
-        // Only persist non-sensitive state
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
         activeBusinessId: state.activeBusinessId,
-        businesses: state.businesses.map(({ businessId, role }) => ({ businessId, role, permissions: [] })),
+        businesses: state.businesses,
       }),
     },
   ),

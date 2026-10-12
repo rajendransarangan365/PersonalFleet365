@@ -1,16 +1,21 @@
+import http from 'http';
 import { createApp } from './app.js';
 import { connectDatabase } from './config/database.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
+import { initSocketServer } from './services/socket.service.js';
 
 async function bootstrap() {
   void connectDatabase();
 
   const app = createApp();
+  const server = http.createServer(app);
+  initSocketServer(server);
+
   const port = env.PORT;
 
-  const server = app.listen(port, '0.0.0.0', () => {
-    logger.info(`🚀 FleetWise API running on port ${port} (0.0.0.0) [${env.NODE_ENV}]`);
+  server.listen(port, '0.0.0.0', () => {
+    logger.info(`🚀 FleetWise API running on port ${port} (0.0.0.0) [${env.NODE_ENV}] with Socket.IO`);
   });
 
   // Graceful shutdown

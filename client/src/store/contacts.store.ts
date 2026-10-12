@@ -89,12 +89,23 @@ const INITIAL_CONTACTS: FleetContact[] = [
     rating: 4.7,
   },
 
+  // ── Fleet Owner (Admin) ──
+  {
+    id: 'owner-01',
+    name: 'Sarangan (Fleet Owner)',
+    role: 'manager',
+    phone: '+91 98410 11223',
+    email: 'owner@fleetwise.in',
+    status: 'online',
+    rating: 5.0,
+  },
+
   // ── Managers ──
   {
     id: 'mgr-01',
-    name: 'Kishore M.',
+    name: 'Kishore M. (Operations Manager)',
     role: 'manager',
-    phone: '+91 98410 11223',
+    phone: '+91 98410 44556',
     email: 'manager@fleetwise.in',
     status: 'online',
     rating: 5.0,

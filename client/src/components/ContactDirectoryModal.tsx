@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users, Phone, MessageSquare, Search, Plus, Trash2, Edit3,
   Car, Shield, Headphones, UserCheck, Check, AlertCircle, X,
   KeyRound, Radio, Navigation, Star, PhoneCall
 } from 'lucide-react';
 import { useContactsStore, type FleetContact } from '../store/contacts.store.js';
+import { useAuthStore } from '../store/auth.store.js';
+import { apiPost } from '../services/api.js';
+import { subscribeToOnlineUsers, type OnlineUserPresence } from '../services/socket.client.js';
 
 interface Props {
   isOpen: boolean;
@@ -21,9 +24,20 @@ export default function ContactDirectoryModal({
   onSelectChat,
   currentRole = 'fleet_owner',
 }: Props) {
+  const { user } = useAuthStore();
+  const myUserId = (user as any)?.id || (user as any)?._id;
   const { contacts, addContact, updateContact, deleteContact } = useContactsStore();
   const [activeTab, setActiveTab] = useState<'all' | 'driver' | 'manager' | 'telecaller' | 'customer'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUserPresence[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsubscribe = subscribeToOnlineUsers((users) => {
+      setOnlineUsers(users);
+    });
+    return () => unsubscribe();
+  }, [isOpen]);
 
   // Add/Edit modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -31,7 +45,7 @@ export default function ContactDirectoryModal({
 
   // Form fields
   const [formName, setFormName] = useState('');
-  const [formRole, setFormRole] = useState<'driver' | 'manager' | 'telecaller'>('driver');
+  const [formRole, setFormRole] = useState<'driver' | 'manager' | 'telecaller' | 'customer'>('driver');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formVehiclePlate, setFormVehiclePlate] = useState('TN01BV4589');
@@ -79,12 +93,27 @@ export default function ContactDirectoryModal({
     e.preventDefault();
     if (!formName.trim() || !formPhone.trim()) return;
 
+    const emailToUse = formEmail.trim() || `${formName.toLowerCase().replace(/[^a-z0-9]/g, '')}@fleetwise.in`;
+
+    // Persist to backend server in real database
+    apiPost('/app/staff', {
+      name: formName.trim(),
+      role: formRole === 'manager' ? 'fleet_manager' : formRole,
+      phone: formPhone.trim(),
+      email: emailToUse,
+      password: formTempPassword || 'Password@123',
+      vehiclePlate: formRole === 'driver' ? formVehiclePlate.trim() : undefined,
+      vehicleModel: formRole === 'driver' ? formVehicleModel.trim() : undefined,
+    }).catch((err) => {
+      console.warn('Backend staff sync notice (cached locally):', err);
+    });
+
     if (editingContact) {
       updateContact(editingContact.id, {
         name: formName.trim(),
         role: formRole,
         phone: formPhone.trim(),
-        email: formEmail.trim() || undefined,
+        email: emailToUse,
         vehiclePlate: formRole === 'driver' ? formVehiclePlate.trim() : undefined,
         vehicleModel: formRole === 'driver' ? formVehicleModel.trim() : undefined,
       });
@@ -93,7 +122,7 @@ export default function ContactDirectoryModal({
         name: formName.trim(),
         role: formRole,
         phone: formPhone.trim(),
-        email: formEmail.trim() || undefined,
+        email: emailToUse,
         vehiclePlate: formRole === 'driver' ? formVehiclePlate.trim() : undefined,
         vehicleModel: formRole === 'driver' ? formVehicleModel.trim() : undefined,
         status: 'available',
@@ -205,36 +234,50 @@ export default function ContactDirectoryModal({
               <p>No contacts found matching your query.</p>
             </div>
           ) : (
-            filteredContacts.map((contact) => (
-              <div
-                key={contact.id}
-                className="pt-2.5 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl hover:bg-slate-800/40 transition-colors border border-transparent hover:border-slate-800"
-              >
-                {/* Contact Left: Avatar & Info */}
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="relative flex-shrink-0">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-slate-700 flex items-center justify-center text-white font-bold text-base shadow-sm">
-                      {contact.name[0]?.toUpperCase()}
-                    </div>
-                    {/* Live Online Badge */}
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
-                        contact.status === 'on_trip'
-                          ? 'bg-cyan-400 animate-pulse'
-                          : contact.status === 'online' || contact.status === 'available'
-                          ? 'bg-emerald-400'
-                          : 'bg-slate-500'
-                      }`}
-                      title={`Status: ${contact.status}`}
-                    />
-                  </div>
+            filteredContacts.map((contact) => {
+              const isContactOnline = onlineUsers.some((u) => u.userId === contact.id);
+              const isSelf = contact.id === myUserId || Boolean(user?.email && contact.email === user.email);
 
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-white text-sm sm:text-base truncate">
-                        {contact.name}
-                      </span>
-                      {getRoleBadge(contact.role)}
+              return (
+                <div
+                  key={contact.id}
+                  className="pt-2.5 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl hover:bg-slate-800/40 transition-colors border border-transparent hover:border-slate-800"
+                >
+                  {/* Contact Left: Avatar & Info */}
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-700 border border-slate-700 flex items-center justify-center text-white font-bold text-base shadow-sm">
+                        {contact.name[0]?.toUpperCase()}
+                      </div>
+                      {/* Live Online Badge */}
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
+                          isContactOnline
+                            ? 'bg-emerald-400 animate-pulse'
+                            : 'bg-slate-500'
+                        }`}
+                        title={isContactOnline ? 'Online on Server' : 'Offline'}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-white text-sm sm:text-base truncate">
+                          {contact.name}
+                        </span>
+                        {getRoleBadge(contact.role)}
+                        {isSelf && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                            You (Logged In)
+                          </span>
+                        )}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${
+                          isContactOnline
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-slate-800 text-slate-500 border border-slate-700/60'
+                        }`}>
+                          {isContactOnline ? 'Online' : 'Offline'}
+                        </span>
                       {contact.status === 'on_trip' && (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                           {contact.speedKmH ? `${contact.speedKmH} km/h` : 'On Trip'}
@@ -274,39 +317,47 @@ export default function ContactDirectoryModal({
 
                 {/* Contact Right: Action Buttons */}
                 <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
-                  {/* VoIP In-App Call Button */}
-                  <button
-                    onClick={() => {
-                      onSelectCall(contact);
-                      onClose();
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition-all active:scale-95"
-                    title={`Start VoIP In-App HD Call with ${contact.name}`}
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>In-App Call</span>
-                  </button>
+                  {isSelf ? (
+                    <span className="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-400 text-xs font-medium">
+                      Your Account (Cannot Call Self)
+                    </span>
+                  ) : (
+                    <>
+                      {/* VoIP In-App Call Button */}
+                      <button
+                        onClick={() => {
+                          onSelectCall(contact);
+                          onClose();
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition-all active:scale-95"
+                        title={`Start VoIP In-App HD Call with ${contact.name}`}
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>In-App Call</span>
+                      </button>
 
-                  {/* Cellular Direct Call */}
-                  <a
-                    href={`tel:${contact.phone}`}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
-                    title={`Dial phone number (${contact.phone}) via cellular`}
-                  >
-                    <PhoneCall className="w-3.5 h-3.5 text-cyan-400" />
-                  </a>
+                      {/* Cellular Direct Call */}
+                      <a
+                        href={`tel:${contact.phone}`}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
+                        title={`Dial phone number (${contact.phone}) via cellular`}
+                      >
+                        <PhoneCall className="w-3.5 h-3.5 text-cyan-400" />
+                      </a>
 
-                  {/* Realtime Chat Button */}
-                  <button
-                    onClick={() => {
-                      onSelectChat(contact);
-                      onClose();
-                    }}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border border-slate-700 transition-colors"
-                    title={`Send instant dispatch message to ${contact.name}`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                  </button>
+                      {/* Realtime Chat Button */}
+                      <button
+                        onClick={() => {
+                          onSelectChat(contact);
+                          onClose();
+                        }}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-cyan-300 border border-slate-700 transition-colors"
+                        title={`Send instant dispatch message to ${contact.name}`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
 
                   {/* Owner/Manager Edit & Delete Controls */}
                   {contact.role !== 'customer' && (
@@ -333,9 +384,10 @@ export default function ContactDirectoryModal({
                   )}
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            );
+          })
+        )}
+      </div>
 
         {/* Footer info */}
         <div className="px-5 py-3 border-t border-slate-800 bg-slate-950/80 text-xs text-slate-400 flex items-center justify-between">
@@ -382,9 +434,10 @@ export default function ContactDirectoryModal({
                     onChange={(e) => setFormRole(e.target.value as any)}
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-brand-500"
                   >
-                    <option value="driver">Driver</option>
-                    <option value="manager">Fleet Manager</option>
-                    <option value="telecaller">Telecaller / Support</option>
+                    <option value="driver">Duty Driver (Console & GPS)</option>
+                    <option value="manager">Fleet Operations Manager</option>
+                    <option value="telecaller">Telecaller / Support Desk</option>
+                    <option value="customer">Passenger / Customer</option>
                   </select>
                 </div>
                 <div>

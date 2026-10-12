@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 const DEMO_PERSONAS = [
   {
+    id: 'owner-01',
     role: 'fleet_owner',
     name: 'Sarangan (Fleet Owner)',
     email: 'owner@fleetwise.in',
@@ -17,6 +18,7 @@ const DEMO_PERSONAS = [
     color: 'from-amber-500 to-yellow-600',
   },
   {
+    id: 'mgr-01',
     role: 'fleet_manager',
     name: 'Kishore (Fleet Manager)',
     email: 'manager@fleetwise.in',
@@ -25,6 +27,7 @@ const DEMO_PERSONAS = [
     color: 'from-purple-500 to-indigo-600',
   },
   {
+    id: 'drv-01',
     role: 'driver',
     name: 'Karthik Raja (Driver)',
     email: 'driver@fleetwise.in',
@@ -33,12 +36,22 @@ const DEMO_PERSONAS = [
     color: 'from-emerald-500 to-teal-600',
   },
   {
+    id: 'cust-01',
     role: 'customer',
     name: 'Ananya (Customer Ride)',
-    email: 'ananya.s@gmail.com',
+    email: 'customer@fleetwise.in',
     badge: 'Passenger Portal',
     path: '/customer',
     color: 'from-cyan-500 to-blue-600',
+  },
+  {
+    id: 'tel-01',
+    role: 'telecaller',
+    name: 'Support & Call Center',
+    email: 'support@fleetwise.in',
+    badge: 'Support Desk 24x7',
+    path: '/taxi-bookings',
+    color: 'from-rose-500 to-pink-600',
   },
 ];
 
@@ -49,7 +62,7 @@ export default function LiveDemoPersonaBar() {
 
   const handleSwitchPersona = (p: typeof DEMO_PERSONAS[0]) => {
     setTokenAndUser('demo_jwt_token_' + p.role, {
-      id: 'demo_' + p.role,
+      id: p.id,
       email: p.email,
       displayName: p.name,
       role: p.role as any,
@@ -59,24 +72,39 @@ export default function LiveDemoPersonaBar() {
       { businessId: 'demo_fleet_biz_01', role: p.role, permissions: [] },
     ]);
 
+    // Force register with common Socket.IO server
+    setTimeout(async () => {
+      const { registerCurrentUser } = await import('../services/socket.client.js');
+      registerCurrentUser();
+    }, 100);
+
     navigate(p.path);
   };
 
   const handleSimulateIncomingCall = () => {
     const userRole = (user as any)?.role;
-    const isOwner = userRole === 'fleet_owner' || userRole === 'admin';
-    const caller = isOwner
-      ? {
-          name: 'Karthik Raja (Driver)',
-          role: 'Duty Driver',
-          phone: '+91 98401 23456',
-          vehiclePlate: 'TN01BV4589',
-        }
-      : {
-          name: 'Fleet Dispatch Control (Sarangan)',
-          role: 'Fleet Owner',
-          phone: '+91 98410 11223',
-        };
+    let caller;
+    if (userRole === 'driver') {
+      caller = {
+        name: 'Sarangan (Fleet Owner)',
+        role: 'fleet_owner',
+        phone: '+91 98410 11223',
+      };
+    } else if (userRole === 'customer') {
+      caller = {
+        name: 'Karthik Raja (Your Cab Driver)',
+        role: 'driver',
+        phone: '+91 98401 23456',
+        vehiclePlate: 'TN01BV4589',
+      };
+    } else {
+      caller = {
+        name: 'Karthik Raja (Duty Driver)',
+        role: 'driver',
+        phone: '+91 98401 23456',
+        vehiclePlate: 'TN01BV4589',
+      };
+    }
 
     callSignaling.triggerIncomingCall(caller);
   };

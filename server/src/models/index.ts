@@ -13,6 +13,8 @@ export interface IUser extends Document {
   passwordResetExpires?: Date;
   mfaEnabled: boolean;
   mfaSecret?: string;
+  role?: string;
+  phone?: string;
   isActive: boolean;
   failedLoginAttempts: number;
   lockedUntil?: Date;
@@ -34,6 +36,8 @@ const UserSchema = new Schema<IUser>(
     },
     passwordHash: { type: String, required: true, select: false },
     displayName: { type: String, required: true, trim: true, maxlength: 100 },
+    role: { type: String, default: 'fleet_owner' },
+    phone: { type: String, default: '' },
     emailVerified: { type: Boolean, default: false },
     emailVerificationToken: { type: String, select: false },
     emailVerificationExpires: { type: Date, select: false },
@@ -176,8 +180,8 @@ const BusinessMembershipSchema = new Schema<IBusinessMembership>(
     role: {
       type: String,
       enum: [
-        'platform_admin', 'business_owner', 'fleet_manager',
-        'accountant', 'dispatcher', 'driver', 'auditor',
+        'platform_admin', 'business_owner', 'fleet_owner', 'fleet_manager', 'operations_manager',
+        'accountant', 'dispatcher', 'telecaller', 'support', 'driver', 'customer', 'auditor',
       ],
       required: true,
     },
@@ -738,14 +742,14 @@ export const AuditEventModel = model<IAuditEvent>('AuditEvent', AuditEventSchema
 // ─── Notification ─────────────────────────────────────────────────────────────
 
 export interface INotification extends Document {
-  businessId: Types.ObjectId;
-  userId?: Types.ObjectId;
+  businessId: any;
+  userId?: any;
   type: string;
   title: string;
   message: string;
   isRead: boolean;
   entityType?: string;
-  entityId?: Types.ObjectId;
+  entityId?: any;
   scheduledFor?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -753,8 +757,8 @@ export interface INotification extends Document {
 
 const NotificationSchema = new Schema<INotification>(
   {
-    businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true, index: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    businessId: { type: Schema.Types.Mixed, required: true, index: true },
+    userId: { type: Schema.Types.Mixed },
     type: { type: String, required: true, maxlength: 50 },
     title: { type: String, required: true, maxlength: 200 },
     message: { type: String, required: true, maxlength: 2000 },
@@ -811,3 +815,201 @@ const SimulationSchema = new Schema<ISimulation>(
 );
 
 export const SimulationModel = model<ISimulation>('Simulation', SimulationSchema);
+
+// ─── Chat Message ─────────────────────────────────────────────────────────────
+
+export interface IChatMessage extends Document {
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  recipientId: string;
+  recipientName?: string;
+  recipientRole?: string;
+  text: string;
+  read: boolean;
+  businessId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ChatMessageSchema = new Schema<IChatMessage>(
+  {
+    senderId: { type: String, required: true, index: true },
+    senderName: { type: String, required: true },
+    senderRole: { type: String, required: true },
+    recipientId: { type: String, required: true, index: true },
+    recipientName: String,
+    recipientRole: String,
+    text: { type: String, required: true },
+    read: { type: Boolean, default: false },
+    businessId: { type: String, default: 'demo_fleet_biz_01' },
+  },
+  { timestamps: true, collection: 'chatMessages' },
+);
+
+ChatMessageSchema.index({ senderId: 1, recipientId: 1, createdAt: -1 });
+
+export const ChatMessageModel = model<IChatMessage>('ChatMessage', ChatMessageSchema);
+
+// ─── Call Log ─────────────────────────────────────────────────────────────────
+
+export interface ICallLog extends Document {
+  callId: string;
+  callerId: string;
+  callerName: string;
+  callerRole: string;
+  callerPhone?: string;
+  targetId: string;
+  targetName: string;
+  targetRole: string;
+  targetPhone?: string;
+  vehiclePlate?: string;
+  status: 'completed' | 'missed' | 'rejected' | 'offline_failed';
+  durationSeconds: number;
+  startedAt: Date;
+  endedAt?: Date;
+  businessId?: string;
+}
+
+const CallLogSchema = new Schema<ICallLog>(
+  {
+    callId: { type: String, required: true, unique: true },
+    callerId: { type: String, required: true, index: true },
+    callerName: { type: String, required: true },
+    callerRole: { type: String, required: true },
+    callerPhone: String,
+    targetId: { type: String, required: true, index: true },
+    targetName: { type: String, required: true },
+    targetRole: { type: String, required: true },
+    targetPhone: String,
+    vehiclePlate: String,
+    status: {
+      type: String,
+      enum: ['completed', 'missed', 'rejected', 'offline_failed'],
+      default: 'completed',
+    },
+    durationSeconds: { type: Number, default: 0 },
+    startedAt: { type: Date, default: Date.now },
+    endedAt: Date,
+    businessId: { type: String, default: 'demo_fleet_biz_01' },
+  },
+  { timestamps: true, collection: 'callLogs' },
+);
+
+export const CallLogModel = model<ICallLog>('CallLog', CallLogSchema);
+
+// ─── Taxi Booking ─────────────────────────────────────────────────────────────
+
+export interface ITaxiBooking extends Document {
+  bookingId: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  pickupLocation: string;
+  dropoffLocation: string;
+  pickupCoords?: { lat: number; lng: number };
+  dropoffCoords?: { lat: number; lng: number };
+  cabTier: string;
+  cabTierName: string;
+  vehicleModel: string;
+  estimatedDistanceKm: number;
+  estimatedFare: number;
+  baseFare: number;
+  otp: string;
+  status: 'pending' | 'driver_assigned' | 'driver_arrived' | 'in_progress' | 'completed' | 'cancelled';
+  assignedDriverId?: string;
+  assignedDriverName?: string;
+  assignedDriverPhone?: string;
+  vehiclePlate?: string;
+  issueReported?: boolean;
+  issueDetails?: string;
+  supportStatus?: 'normal' | 'support_needed' | 'resolved';
+  supportResolutionNotes?: string;
+  businessId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const TaxiBookingSchema = new Schema<ITaxiBooking>(
+  {
+    bookingId: { type: String, required: true, unique: true, index: true },
+    customerId: { type: String, required: true, index: true },
+    customerName: { type: String, required: true },
+    customerPhone: { type: String, required: true },
+    customerEmail: String,
+    pickupLocation: { type: String, required: true },
+    dropoffLocation: { type: String, required: true },
+    pickupCoords: { lat: Number, lng: Number },
+    dropoffCoords: { lat: Number, lng: Number },
+    cabTier: { type: String, required: true },
+    cabTierName: { type: String, required: true },
+    vehicleModel: { type: String, required: true },
+    estimatedDistanceKm: { type: Number, required: true },
+    estimatedFare: { type: Number, required: true },
+    baseFare: { type: Number, required: true },
+    otp: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ['pending', 'driver_assigned', 'driver_arrived', 'in_progress', 'completed', 'cancelled'],
+      default: 'pending',
+      index: true,
+    },
+    assignedDriverId: { type: String, index: true },
+    assignedDriverName: String,
+    assignedDriverPhone: String,
+    vehiclePlate: String,
+    issueReported: { type: Boolean, default: false },
+    issueDetails: String,
+    supportStatus: {
+      type: String,
+      enum: ['normal', 'support_needed', 'resolved'],
+      default: 'normal',
+      index: true,
+    },
+    supportResolutionNotes: String,
+    businessId: { type: String, default: 'demo_fleet_biz_01', index: true },
+  },
+  { timestamps: true, collection: 'taxiBookings' },
+);
+
+TaxiBookingSchema.index({ businessId: 1, createdAt: -1 });
+
+export const TaxiBookingModel = model<ITaxiBooking>('TaxiBooking', TaxiBookingSchema);
+
+// ─── Driver Duty Status ───────────────────────────────────────────────────────
+
+export interface IDriverDuty extends Document {
+  driverId: string;
+  driverName: string;
+  phone: string;
+  vehiclePlate: string;
+  status: 'online' | 'offline' | 'on_trip';
+  lastStatusChange: Date;
+  offlineNotifiedToOwner: boolean;
+  businessId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const DriverDutySchema = new Schema<IDriverDuty>(
+  {
+    driverId: { type: String, required: true, unique: true, index: true },
+    driverName: { type: String, required: true },
+    phone: { type: String, required: true },
+    vehiclePlate: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ['online', 'offline', 'on_trip'],
+      default: 'online',
+      index: true,
+    },
+    lastStatusChange: { type: Date, default: Date.now },
+    offlineNotifiedToOwner: { type: Boolean, default: false },
+    businessId: { type: String, default: 'demo_fleet_biz_01' },
+  },
+  { timestamps: true, collection: 'driverDuties' },
+);
+
+export const DriverDutyModel = model<IDriverDuty>('DriverDuty', DriverDutySchema);
+

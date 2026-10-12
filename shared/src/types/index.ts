@@ -129,8 +129,11 @@ export interface TenantDocument extends BaseDocument {
 // ─── User & auth ──────────────────────────────────────────────────────────────
 
 export interface User extends BaseDocument {
+  id?: string;
   email: string;
   displayName: string;
+  role?: UserRole;
+  phone?: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
   isActive: boolean;

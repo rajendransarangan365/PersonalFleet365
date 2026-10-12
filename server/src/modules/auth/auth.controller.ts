@@ -121,13 +121,48 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
   const passwordHash = user?.passwordHash ?? dummyHash;
   const passwordMatch = await verifyPassword(passwordHash, password);
 
-  const isDemoEmail = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in'].includes(email.toLowerCase());
+  const demoEmails = [
+    'owner@fleetwise.in',
+    'manager@fleetwise.in',
+    'driver@fleetwise.in',
+    'customer@fleetwise.in',
+    'support@fleetwise.in',
+  ];
+  const isDemoEmail = demoEmails.includes(email.toLowerCase());
   const isDemoPassword = password === 'Password@123' || password === 'demo123';
 
   if (!user && isDemoEmail && isDemoPassword) {
-    const demoRole = email.includes('owner') ? 'fleet_owner' : email.includes('manager') ? 'fleet_manager' : email.includes('driver') ? 'driver' : 'customer';
-    const demoName = email.includes('owner') ? 'Sarangan (Fleet Owner)' : email.includes('manager') ? 'Kishore (Fleet Manager)' : email.includes('driver') ? 'Karthik Raja (Duty Driver)' : 'Ananya Sharma (Passenger)';
-    const demoUserId = `demo_usr_${Date.now()}`;
+    const lower = email.toLowerCase();
+    const demoRole = lower.includes('owner')
+      ? 'fleet_owner'
+      : lower.includes('manager')
+      ? 'fleet_manager'
+      : lower.includes('driver')
+      ? 'driver'
+      : lower.includes('support')
+      ? 'telecaller'
+      : 'customer';
+
+    const demoName = lower.includes('owner')
+      ? 'Sarangan (Fleet Owner)'
+      : lower.includes('manager')
+      ? 'Kishore M. (Fleet Manager)'
+      : lower.includes('driver')
+      ? 'Karthik Raja (Duty Driver)'
+      : lower.includes('support')
+      ? 'Fleet 365 24x7 Support Desk'
+      : 'Ananya Sharma (Passenger)';
+
+    const demoUserId = lower.includes('owner')
+      ? 'owner-01'
+      : lower.includes('manager')
+      ? 'mgr-01'
+      : lower.includes('driver')
+      ? 'drv-01'
+      : lower.includes('support')
+      ? 'tel-01'
+      : 'cust-01';
+
     const accessToken = signAccessToken(demoUserId, email);
 
     res.json({
@@ -143,7 +178,7 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
         },
         businesses: [
           {
-            businessId: 'demo_business_365',
+            businessId: 'demo_fleet_biz_01',
             role: demoRole,
           },
         ],
@@ -206,8 +241,11 @@ export const signIn = asyncHandler(async (req: Request, res: Response) => {
       accessToken,
       user: {
         _id: user._id,
+        id: String(user._id),
         email: user.email,
         displayName: user.displayName,
+        role: (user as any).role || memberships[0]?.role || 'fleet_owner',
+        phone: (user as any).phone || '',
         emailVerified: user.emailVerified,
       },
       businesses: memberships.map((m) => ({ businessId: m.businessId, role: m.role })),

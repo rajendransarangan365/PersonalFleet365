@@ -6,6 +6,7 @@ import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Sparkles, KeyRound, Shie
 import { SignInSchema, type SignInInput } from '@fleetwise/shared';
 import { apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
+import { useContactsStore } from '../../store/contacts.store.js';
 import type { User } from '@fleetwise/shared';
 import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 import FleetLogo from '../../components/FleetLogo.js';
@@ -53,18 +54,60 @@ export default function SignInPage({ devMode }: SignInPageProps) {
           permissions: [],
         })));
 
+        const userRole = (result.user as any)?.role || result.businesses?.[0]?.role || 'fleet_owner';
+        const target =
+          userRole === 'driver'
+            ? '/driver-portal'
+            : userRole === 'customer'
+            ? '/bookings'
+            : userRole === 'telecaller' || userRole === 'support'
+            ? '/taxi-bookings'
+            : '/dashboard';
+
         setSuccess(true);
-        setTimeout(() => navigate('/dashboard'), 500);
+        setTimeout(() => navigate(target), 400);
       } catch (err: unknown) {
+        // Check dynamically created staff contacts from contactsStore
+        const { contacts } = useContactsStore.getState();
+        const matchedContact = contacts.find((c) => c.email?.toLowerCase() === data.email.toLowerCase());
+        if (matchedContact) {
+          const role = matchedContact.role === 'manager' ? 'fleet_manager' : matchedContact.role;
+          const target =
+            role === 'driver'
+              ? '/driver-portal'
+              : role === 'customer'
+              ? '/bookings'
+              : role === 'telecaller'
+              ? '/taxi-bookings'
+              : '/dashboard';
+
+          const localUser: User = {
+            id: matchedContact.id,
+            email: matchedContact.email || data.email,
+            displayName: matchedContact.name,
+            role,
+            isActive: true,
+            emailVerified: true,
+          } as any;
+
+          setTokenAndUser('local_jwt_access_token', localUser, [
+            { businessId: 'demo_fleet_biz_01', role, permissions: [] },
+          ]);
+
+          setSuccess(true);
+          setTimeout(() => navigate(target), 400);
+          return;
+        }
+
         // If demo credentials or dev accounts, automatically log in even if backend server returns 404 or is sleeping!
-        const isDemo = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in'].includes(data.email.toLowerCase());
+        const isDemo = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in', 'support@fleetwise.in', 'telecaller@fleetwise.in'].includes(data.email.toLowerCase());
         if (isDemo) {
-          const role = data.email.includes('owner') ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : data.email.includes('driver') ? 'driver' : 'customer';
-          const name = data.email.includes('owner') ? 'Sarangan (Fleet Owner)' : data.email.includes('manager') ? 'Kishore (Fleet Manager)' : data.email.includes('driver') ? 'Karthik Raja (Duty Driver)' : 'Ananya Sharma (Passenger)';
-          const target = role === 'driver' ? '/driver-portal' : role === 'customer' ? '/customer' : '/dashboard';
+          const role = data.email.includes('owner') ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : data.email.includes('driver') ? 'driver' : data.email.includes('customer') ? 'customer' : 'telecaller';
+          const name = data.email.includes('owner') ? 'Sarangan (Fleet Owner)' : data.email.includes('manager') ? 'Kishore (Fleet Manager)' : data.email.includes('driver') ? 'Karthik Raja (Duty Driver)' : data.email.includes('customer') ? 'Ananya Sharma (Passenger)' : 'Fleet 365 Helpline Desk';
+          const target = role === 'driver' ? '/driver-portal' : role === 'customer' ? '/bookings' : role === 'telecaller' ? '/taxi-bookings' : '/dashboard';
 
           const mockUser: User = {
-            id: `demo_${role}_01`,
+            id: role === 'driver' ? 'drv-01' : role === 'customer' ? 'cust-01' : role === 'telecaller' ? 'tel-01' : role === 'fleet_manager' ? 'mgr-01' : 'owner-01',
             email: data.email,
             displayName: name,
             role,
@@ -127,7 +170,17 @@ export default function SignInPage({ devMode }: SignInPageProps) {
       badge: 'Passenger Portal',
       badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
       description: 'Ola/Uber ride booking, live map, driver in-app calling & OTP',
-      target: '/customer',
+      target: '/bookings',
+    },
+    {
+      role: 'telecaller' as const,
+      label: 'Call Center & Support Desk',
+      email: 'support@fleetwise.in',
+      password: 'Password@123',
+      badge: 'Help Desk 24x7',
+      badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+      description: 'Dispute resolution, taxi bookings overview, live intervention',
+      target: '/taxi-bookings',
     },
   ];
 
@@ -139,6 +192,14 @@ export default function SignInPage({ devMode }: SignInPageProps) {
   const handleInstantDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
     handleAutoFill(account.email, account.password);
     setServerError(null);
+
+    const idMap: Record<string, string> = {
+      fleet_owner: 'owner-01',
+      fleet_manager: 'mgr-01',
+      driver: 'drv-01',
+      customer: 'cust-01',
+      telecaller: 'tel-01',
+    };
 
     try {
       const result = await apiPost<{
@@ -154,10 +215,10 @@ export default function SignInPage({ devMode }: SignInPageProps) {
     } catch {
       // Instant offline / fallback demo session
       const mockUser: User = {
-        id: `demo_${account.role}_01`,
+        id: idMap[account.role] || `usr_${account.role}`,
         email: account.email,
         displayName: account.label,
-        role: account.role,
+        role: account.role as any,
         isActive: true,
         emailVerified: true,
       } as any;
@@ -178,26 +239,25 @@ export default function SignInPage({ devMode }: SignInPageProps) {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md animate-fade-in">
+      <div className="relative w-full max-w-lg animate-fade-in my-8">
         {/* Fleet365 Stylized Logo */}
         <FleetLogo size="xl" subtitle="Commercial Fleet Management Platform" className="justify-center mb-6" />
 
-        {/* Secret Demo Access Portal (/dev) */}
-        {isDevMode && (
-          <div className="glass-card p-5 border-brand-500/30 bg-slate-900/95 shadow-2xl mb-6 animate-slide-in">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-brand-400" />
-                <h3 className="text-sm font-bold text-white">Secret Demo Access Portal</h3>
-              </div>
-              <span className="bg-brand-500/20 text-brand-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-brand-500/30">
-                Direct Link: /dev
-              </span>
+        {/* 1-Click Role Login Profiles (Always Visible for Complete Transparency) */}
+        <div className="glass-card p-5 border-brand-500/30 bg-slate-900/95 shadow-2xl mb-6 animate-slide-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-400" />
+              <h3 className="text-sm font-bold text-white">1-Click Instant Login Accounts</h3>
             </div>
+            <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+              Common Server Active
+            </span>
+          </div>
 
-            <p className="text-xs text-slate-400 mt-2 mb-3">
-              Pre-configured demo profiles with immediate access and live test credentials:
-            </p>
+          <p className="text-xs text-slate-400 mt-2 mb-3">
+            Click <b>Launch</b> to log in directly as any role, or use password <code className="text-amber-300 font-mono">Password@123</code>:
+          </p>
 
             <div className="space-y-2.5">
               {DEMO_ACCOUNTS.map((acc) => (
@@ -241,7 +301,6 @@ export default function SignInPage({ devMode }: SignInPageProps) {
               ))}
             </div>
           </div>
-        )}
 
         {/* Card */}
         <div className="glass-card p-8 shadow-2xl shadow-black/40">

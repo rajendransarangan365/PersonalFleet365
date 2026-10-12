@@ -33,11 +33,11 @@ export default function IncomingCallModal({ onAccept }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="bg-slate-900 border-2 border-emerald-500/50 rounded-3xl max-w-sm w-full p-6 shadow-2xl flex flex-col items-center text-center space-y-6 relative overflow-hidden">
+    <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+      <div className="bg-slate-900 border-2 border-emerald-500/60 rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl flex flex-col items-center text-center space-y-5 relative overflow-hidden">
         {/* Animated Radial Waves */}
         <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute -top-20 -left-20 w-52 h-52 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute -top-20 -left-20 w-52 h-52 bg-emerald-500/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
         {/* Incoming Header */}
         <div className="w-full flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-3">
@@ -50,7 +50,7 @@ export default function IncomingCallModal({ onAccept }: Props) {
           <span className="text-slate-500 font-mono text-[10px]">VoIP HD Voice</span>
         </div>
 
-        {/* Caller Avatar with Triple Ring Pulse */}
+        {/* Caller Avatar with Pulse Waves */}
         <div className="relative my-2">
           <div className="absolute inset-0 rounded-full bg-emerald-500/30 animate-ping scale-150" />
           <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping scale-125" style={{ animationDelay: '0.4s' }} />
@@ -60,8 +60,8 @@ export default function IncomingCallModal({ onAccept }: Props) {
         </div>
 
         {/* Caller Details */}
-        <div className="space-y-1 z-10">
-          <h3 className="text-xl font-black text-white tracking-tight">
+        <div className="space-y-1.5 z-10 w-full">
+          <h3 className="text-xl font-black text-white tracking-tight truncate px-2">
             {session.callerName}
           </h3>
           <p className="text-xs text-emerald-400 font-medium capitalize">
@@ -75,11 +75,14 @@ export default function IncomingCallModal({ onAccept }: Props) {
             </div>
           )}
 
-          <p className="text-xs text-slate-400 font-mono pt-1">
-            {session.callerPhone}
-          </p>
+          {session.callerPhone && (
+            <p className="text-xs text-slate-400 font-mono pt-1">
+              {session.callerPhone}
+            </p>
+          )}
+
           <div className="text-xs text-amber-400 font-medium animate-pulse pt-1">
-            Ringing... Click Accept to connect
+            Ringing... Click Accept to connect HD audio
           </div>
         </div>
 
