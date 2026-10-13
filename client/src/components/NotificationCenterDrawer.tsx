@@ -16,54 +16,6 @@ export interface AppNotificationItem {
   actionUrl?: string;
 }
 
-const DEFAULT_NOTIFICATIONS: AppNotificationItem[] = [
-  {
-    id: 'n-1',
-    type: 'trip',
-    title: 'New Trip Assigned',
-    message: 'Pickup at Chennai Airport T1 to OMR IT Park (Vehicle: TN01BV4589 - Dzire Tour S)',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    read: false,
-    actionUrl: '/driver-portal',
-  },
-  {
-    id: 'n-2',
-    type: 'chat',
-    title: 'New Message from Fleet Manager',
-    message: 'Kishore: "Please confirm passenger pickup time once they board."',
-    timestamp: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    read: false,
-    actionUrl: '/driver-portal',
-  },
-  {
-    id: 'n-3',
-    type: 'maintenance',
-    title: 'Vehicle Maintenance Inspection',
-    message: 'Innova Crysta TN09CD3312 reaches 50,000 km. Scheduled oil service recommended.',
-    timestamp: new Date(Date.now() - 120 * 60 * 1000).toISOString(),
-    read: false,
-    actionUrl: '/maintenance',
-  },
-  {
-    id: 'n-4',
-    type: 'emi',
-    title: 'Upcoming Loan EMI Reminder',
-    message: 'Dzire Tour S loan EMI of ₹14,200 due on 15th October.',
-    timestamp: new Date(Date.now() - 360 * 60 * 1000).toISOString(),
-    read: true,
-    actionUrl: '/finance',
-  },
-  {
-    id: 'n-5',
-    type: 'speed',
-    title: 'Safe Driving Economy Alert',
-    message: 'Average trip fuel efficiency 26.8 km/kg CNG maintained. Excellent driving economy!',
-    timestamp: new Date(Date.now() - 720 * 60 * 1000).toISOString(),
-    read: true,
-    actionUrl: '/driver-portal',
-  },
-];
-
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -74,7 +26,7 @@ export default function NotificationCenterDrawer({ isOpen, onClose, onUnreadCoun
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AppNotificationItem[]>(() => {
     const saved = localStorage.getItem('fw_notifications');
-    return saved ? JSON.parse(saved) : DEFAULT_NOTIFICATIONS;
+    return saved ? JSON.parse(saved) : [];
   });
   const [filter, setFilter] = useState<'all' | 'unread' | 'trips' | 'alerts'>('all');
   const [pushStatus, setPushStatus] = useState<NotificationPermission>('default');

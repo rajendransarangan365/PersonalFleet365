@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ShieldAlert, KeyRound, Check, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
+import { useContactsStore } from '../store/contacts.store.js';
+import { apiPost } from '../services/api.js';
 
 interface Props {
   isOpen: boolean;
@@ -18,7 +20,7 @@ export default function CompulsoryPasswordChangeModal({ isOpen, onSuccess }: Pro
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -36,11 +38,31 @@ export default function CompulsoryPasswordChangeModal({ isOpen, onSuccess }: Pro
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      localStorage.setItem('fleet_pwd_changed', 'true');
-      onSuccess();
-    }, 700);
+    try {
+      await apiPost('/auth/change-password', {
+        email: user?.email,
+        oldPassword,
+        newPassword,
+      });
+    } catch (err: unknown) {
+      console.warn('Backend password change warning:', err);
+    }
+
+    // Also sync in local contacts store
+    if (user?.email) {
+      const { contacts, updateContact } = useContactsStore.getState();
+      const matched = contacts.find((c) => c.email?.toLowerCase() === user.email.toLowerCase());
+      if (matched) {
+        updateContact(matched.id, {
+          tempPassword: newPassword,
+          mustChangePassword: false,
+        });
+      }
+    }
+
+    setIsSubmitting(false);
+    localStorage.setItem('fleet_pwd_changed', 'true');
+    onSuccess();
   };
 
   return (

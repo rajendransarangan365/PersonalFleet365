@@ -14,6 +14,7 @@ import SettingsPage from './pages/settings/SettingsPage.js';
 import DriverPortalPage from './pages/driver/DriverPortalPage.js';
 import CustomerPortalPage from './pages/customer/CustomerPortalPage.js';
 import TaxiBookingsPage from './pages/bookings/TaxiBookingsPage.js';
+import MessagesPage from './pages/messages/MessagesPage.js';
 import ErrorBoundary from './components/ErrorBoundary.js';
 import { useAuthStore } from './store/auth.store.js';
 
@@ -39,27 +40,27 @@ function ProtectedRoute({
     businesses[0]?.role ||
     'fleet_owner';
 
-  // Role Boundary 1: Driver can ONLY access /driver-portal, /taxi-bookings, /vehicles
+  // Role Boundary 1: Driver can access /driver-portal, /taxi-bookings, /vehicles, /messages
   if (userRole === 'driver') {
-    const driverAllowed = ['/driver-portal', '/taxi-bookings', '/vehicles', '/driver'];
+    const driverAllowed = ['/driver-portal', '/taxi-bookings', '/vehicles', '/driver', '/messages'];
     const isAllowed = driverAllowed.some((path) => location.pathname.startsWith(path));
     if (!isAllowed) {
       return <Navigate to="/driver-portal" replace />;
     }
   }
 
-  // Role Boundary 2: Customer can ONLY access /bookings, /customer, /book, /taxi-bookings
+  // Role Boundary 2: Customer can access /bookings, /customer, /book, /taxi-bookings, /messages
   if (userRole === 'customer') {
-    const customerAllowed = ['/bookings', '/customer', '/book', '/taxi-bookings'];
+    const customerAllowed = ['/bookings', '/customer', '/book', '/taxi-bookings', '/messages'];
     const isAllowed = customerAllowed.some((path) => location.pathname.startsWith(path));
     if (!isAllowed) {
       return <Navigate to="/bookings" replace />;
     }
   }
 
-  // Role Boundary 3: Telecaller can access /taxi-bookings, /driver-portal, /customer, /bookings
+  // Role Boundary 3: Telecaller can access /taxi-bookings, /driver-portal, /customer, /bookings, /messages
   if (userRole === 'telecaller' || userRole === 'support') {
-    const telecallerAllowed = ['/taxi-bookings', '/driver-portal', '/customer', '/bookings'];
+    const telecallerAllowed = ['/taxi-bookings', '/driver-portal', '/customer', '/bookings', '/messages'];
     const isAllowed = telecallerAllowed.some((path) => location.pathname.startsWith(path));
     if (!isAllowed) {
       return <Navigate to="/taxi-bookings" replace />;
@@ -121,6 +122,16 @@ export default function App() {
         <Route path="/bookings" element={<CustomerPortalPage />} />
         <Route path="/customer" element={<CustomerPortalPage />} />
         <Route path="/book" element={<CustomerPortalPage />} />
+
+        {/* Real In-App Messages, WhatsApp Voice Notes & Communications Center */}
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Taxi Bookings & Dispatch Center (Owner, Manager, Call Center) */}
         <Route

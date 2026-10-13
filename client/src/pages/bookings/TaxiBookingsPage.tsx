@@ -40,15 +40,12 @@ interface TaxiBooking {
   createdAt: string;
 }
 
-const AVAILABLE_DRIVERS = [
-  { id: 'drv-01', name: 'Karthik Raja', phone: '+91 98401 23456', vehiclePlate: 'TN01BV4589', model: 'Tour S CNG' },
-  { id: 'drv-02', name: 'Suresh Kumar', phone: '+91 98402 34567', vehiclePlate: 'TN09CE2311', model: 'Aura CNG' },
-  { id: 'drv-03', name: 'Vijay Anand', phone: '+91 98403 45678', vehiclePlate: 'TN02DF7812', model: 'Tigor EV Green' },
-  { id: 'drv-04', name: 'Ramesh Babu', phone: '+91 98404 56789', vehiclePlate: 'TN10AK9944', model: 'Innova Crysta' },
-];
+import { useContactsStore } from '../../store/contacts.store.js';
 
 export default function TaxiBookingsPage() {
   const { user } = useAuthStore();
+  const { getDrivers } = useContactsStore();
+  const availableDrivers = getDrivers();
   const [bookings, setBookings] = useState<TaxiBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -116,7 +113,7 @@ export default function TaxiBookingsPage() {
     }
   };
 
-  const handleAssignDriver = async (driver: typeof AVAILABLE_DRIVERS[0]) => {
+  const handleAssignDriver = async (driver: { id: string; name: string; phone: string; vehiclePlate?: string }) => {
     if (!assignModalBooking) return;
     try {
       const updated = await apiPatch<TaxiBooking>(`/app/bookings/${assignModalBooking.bookingId || assignModalBooking._id}/assign`, {
@@ -581,27 +578,39 @@ export default function TaxiBookingsPage() {
             </p>
 
             <div className="space-y-2">
-              {AVAILABLE_DRIVERS.map((d) => (
-                <div
-                  key={d.id}
-                  onClick={() => handleAssignDriver(d)}
-                  className="p-3 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-brand-500 rounded-xl cursor-pointer flex items-center justify-between text-xs transition-all"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-                      {d.name[0]}
-                    </div>
-                    <div>
-                      <span className="font-bold text-white block">{d.name}</span>
-                      <span className="text-slate-400 font-mono text-[11px]">{d.vehiclePlate} ({d.model})</span>
-                    </div>
-                  </div>
-
-                  <span className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-[11px]">
-                    Assign
-                  </span>
+              {availableDrivers.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400 bg-slate-800/40 rounded-xl border border-slate-700/60 space-y-1">
+                  <p>No drivers in fleet yet.</p>
+                  <p className="text-[11px] text-slate-500">Create driver accounts using the Contact Directory modal.</p>
                 </div>
-              ))}
+              ) : (
+                availableDrivers.map((d) => (
+                  <div
+                    key={d.id}
+                    onClick={() => handleAssignDriver({
+                      id: d.id,
+                      name: d.name,
+                      phone: d.phone,
+                      vehiclePlate: d.vehiclePlate || 'TN01BV4589',
+                    })}
+                    className="p-3 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-brand-500 rounded-xl cursor-pointer flex items-center justify-between text-xs transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                        {d.name[0]}
+                      </div>
+                      <div>
+                        <span className="font-bold text-white block">{d.name}</span>
+                        <span className="text-slate-400 font-mono text-[11px]">{d.vehiclePlate} ({d.vehicleModel || 'Fleet Vehicle'})</span>
+                      </div>
+                    </div>
+
+                    <span className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-[11px]">
+                      Assign
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

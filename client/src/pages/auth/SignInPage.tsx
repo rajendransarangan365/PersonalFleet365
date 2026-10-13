@@ -71,7 +71,7 @@ export default function SignInPage({ devMode }: SignInPageProps) {
         const { contacts } = useContactsStore.getState();
         const matchedContact = contacts.find((c) => c.email?.toLowerCase() === data.email.toLowerCase());
         if (matchedContact) {
-          const role = matchedContact.role === 'manager' ? 'fleet_manager' : matchedContact.role;
+          const role = matchedContact.role === 'owner' ? 'fleet_owner' : matchedContact.role === 'manager' ? 'fleet_manager' : matchedContact.role;
           const target =
             role === 'driver'
               ? '/driver-portal'
@@ -91,7 +91,7 @@ export default function SignInPage({ devMode }: SignInPageProps) {
           } as any;
 
           setTokenAndUser('local_jwt_access_token', localUser, [
-            { businessId: 'demo_fleet_biz_01', role, permissions: [] },
+            { businessId: 'primary_fleet_biz', role, permissions: ['*'] },
           ]);
 
           setSuccess(true);
@@ -100,14 +100,15 @@ export default function SignInPage({ devMode }: SignInPageProps) {
         }
 
         // If demo credentials or dev accounts, automatically log in even if backend server returns 404 or is sleeping!
-        const isDemo = ['owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in', 'support@fleetwise.in', 'telecaller@fleetwise.in'].includes(data.email.toLowerCase());
+        const isDemo = ['sarangan365@gmail.com', 'owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in', 'support@fleetwise.in', 'telecaller@fleetwise.in'].includes(data.email.toLowerCase());
         if (isDemo) {
-          const role = data.email.includes('owner') ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : data.email.includes('driver') ? 'driver' : data.email.includes('customer') ? 'customer' : 'telecaller';
-          const name = data.email.includes('owner') ? 'Sarangan (Fleet Owner)' : data.email.includes('manager') ? 'Kishore (Fleet Manager)' : data.email.includes('driver') ? 'Karthik Raja (Duty Driver)' : data.email.includes('customer') ? 'Ananya Sharma (Passenger)' : 'Fleet 365 Helpline Desk';
+          const isOwner = data.email.includes('owner') || data.email.toLowerCase() === 'sarangan365@gmail.com';
+          const role = isOwner ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : data.email.includes('driver') ? 'driver' : data.email.includes('customer') ? 'customer' : 'telecaller';
+          const name = isOwner ? 'Sarangan (Company Owner)' : data.email.includes('manager') ? 'Operations Manager' : data.email.includes('driver') ? 'Duty Driver' : data.email.includes('customer') ? 'Passenger Ride' : 'Fleet 365 Helpline Desk';
           const target = role === 'driver' ? '/driver-portal' : role === 'customer' ? '/bookings' : role === 'telecaller' ? '/taxi-bookings' : '/dashboard';
 
           const mockUser: User = {
-            id: role === 'driver' ? 'drv-01' : role === 'customer' ? 'cust-01' : role === 'telecaller' ? 'tel-01' : role === 'fleet_manager' ? 'mgr-01' : 'owner-01',
+            id: isOwner ? 'owner-01' : role === 'driver' ? 'drv-01' : role === 'customer' ? 'cust-01' : role === 'telecaller' ? 'tel-01' : 'mgr-01',
             email: data.email,
             displayName: name,
             role,
@@ -116,7 +117,7 @@ export default function SignInPage({ devMode }: SignInPageProps) {
           } as any;
 
           setTokenAndUser('demo_jwt_access_token_mock', mockUser, [
-            { businessId: 'demo_fleet_biz_01', role, permissions: [] },
+            { businessId: 'primary_fleet_biz', role, permissions: ['*'] },
           ]);
 
           setSuccess(true);
@@ -134,12 +135,12 @@ export default function SignInPage({ devMode }: SignInPageProps) {
   const DEMO_ACCOUNTS = [
     {
       role: 'fleet_owner' as const,
-      label: 'Fleet Owner (Admin)',
-      email: 'owner@fleetwise.in',
-      password: 'Password@123',
-      badge: 'Full Fleet Control',
+      label: 'Sarangan (Company Owner)',
+      email: 'sarangan365@gmail.com',
+      password: 'FleetPass@2026',
+      badge: '👑 Company Owner',
       badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      description: 'Profit simulator, finance, loan EMI tracking, live GPS',
+      description: 'Profit simulator, finance, loan EMI tracking, VoIP calling & full OS',
       target: '/dashboard',
     },
     {

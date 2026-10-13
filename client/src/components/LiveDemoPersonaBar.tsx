@@ -11,9 +11,9 @@ const DEMO_PERSONAS = [
   {
     id: 'owner-01',
     role: 'fleet_owner',
-    name: 'Sarangan (Fleet Owner)',
-    email: 'owner@fleetwise.in',
-    badge: 'Owner Admin',
+    name: 'Sarangan (Company Owner)',
+    email: 'sarangan365@gmail.com',
+    badge: '👑 Company Owner',
     path: '/dashboard',
     color: 'from-amber-500 to-yellow-600',
   },

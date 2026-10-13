@@ -1,21 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Send, X, Phone, Users
+  Send, X, Phone, Users, Mic, Trash2, Play, Pause,
+  Volume2, Radio
 } from 'lucide-react';
 import { apiGet, apiPost } from '../services/api.js';
-import { playMessageChime } from '../utils/audioAlerts.js';
+import { playMessageChime, requestMicrophoneAccess } from '../utils/audioAlerts.js';
 import { getSocket, isUserCurrentlyOnline, registerCurrentUser } from '../services/socket.client.js';
 import { useAuthStore } from '../store/auth.store.js';
 import { useContactsStore, type FleetContact } from '../store/contacts.store.js';
 
-interface ChatMessage {
+export interface ChatMessage {
   id: string;
   senderId: string;
   senderName: string;
   senderRole: string;
   recipientId?: string;
   recipientName?: string;
+  recipientRole?: string;
   text: string;
+  messageType?: 'text' | 'voice';
+  audioUrl?: string;
+  durationSec?: number;
   timestamp: string;
   read: boolean;
   contactId?: string;
@@ -35,6 +40,127 @@ interface Props {
   contact?: FleetContact | null;
   driverName?: string;
   onStartCall?: (contact: FleetContact) => void;
+}
+
+// ─── WhatsApp Style Voice Note Player Component ─────────────────────────────
+export function VoiceNoteBubble({
+  audioUrl,
+  durationSec = 0,
+  isMe,
+}: {
+  audioUrl: string;
+  durationSec?: number;
+  isMe: boolean;
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(durationSec || 0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+
+    audio.onloadedmetadata = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        setDuration(Math.round(audio.duration));
+      }
+    };
+
+    audio.ontimeupdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    audio.onended = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    return () => {
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, [audioUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const target = pos * duration;
+    audioRef.current.currentTime = target;
+    setCurrentTime(target);
+  };
+
+  const formatSecs = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  return (
+    <div className="flex items-center gap-3 py-1 px-1 min-w-[210px] sm:min-w-[240px]">
+      <button
+        onClick={togglePlay}
+        className={`w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md transition-all active:scale-95 flex-shrink-0 ${
+          isMe
+            ? 'bg-white/20 hover:bg-white/30 text-white'
+            : 'bg-emerald-500 hover:bg-emerald-400 text-white'
+        }`}
+        title={isPlaying ? 'Pause' : 'Play Voice Note'}
+      >
+        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+
+      <div className="flex-1 flex flex-col justify-center space-y-1">
+        {/* Waveform / Scrubber bar */}
+        <div
+          onClick={handleSeek}
+          className="h-3 w-full flex items-center gap-0.5 cursor-pointer relative group"
+        >
+          {/* Simulated audio frequency bars */}
+          {[40, 75, 55, 90, 60, 80, 45, 95, 70, 50, 85, 60, 40, 75, 90, 55].map((h, i) => {
+            const barProgress = (i / 16) * 100;
+            const isFilled = progress >= barProgress;
+            return (
+              <div
+                key={i}
+                className={`w-1 rounded-full transition-colors ${
+                  isFilled
+                    ? isMe ? 'bg-white' : 'bg-emerald-400'
+                    : isMe ? 'bg-white/30' : 'bg-slate-600'
+                }`}
+                style={{ height: `${h}%` }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Timers & Mic tag */}
+        <div className="flex items-center justify-between text-[10px] font-mono leading-none">
+          <span className={isMe ? 'text-white/80' : 'text-slate-400'}>
+            {formatSecs(currentTime > 0 ? currentTime : duration)}
+          </span>
+          <div className="flex items-center gap-1">
+            <Mic className={`w-3 h-3 ${isMe ? 'text-white/70' : 'text-emerald-400'}`} />
+            <span className={isMe ? 'text-white/70' : 'text-slate-400 text-[9px]'}>Voice note</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function InAppChatModal({
@@ -99,6 +225,13 @@ export default function InAppChatModal({
   const [isRecipientOnline, setIsRecipientOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Voice Note Recording State
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Check online status of recipient
   useEffect(() => {
     if (!isOpen) return;
@@ -123,7 +256,7 @@ export default function InAppChatModal({
               senderId: contactId,
               senderName: contactName,
               senderRole: contactRole,
-              text: `Fleet chat channel connected with ${contactName}. Messages are stored on the central server.`,
+              text: `Fleet chat channel connected with ${contactName}. Text and WhatsApp-style voice notes are stored on the central server.`,
               timestamp: new Date().toISOString(),
               read: true,
             },
@@ -149,7 +282,6 @@ export default function InAppChatModal({
     const socket = getSocket();
 
     const handleIncomingMessage = (newMsg: ChatMessage) => {
-      // Ignore self-echoes
       if (newMsg.senderId === myUserId) return;
 
       if (newMsg.senderId === contactId || newMsg.recipientId === contactId) {
@@ -182,10 +314,108 @@ export default function InAppChatModal({
     }
   }, [messages, contactId]);
 
+  // Clean up recording timer on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  // ─── Voice Note Recording Actions ──────────────────────────────────────────
+  const startVoiceRecording = async () => {
+    try {
+      const res = await requestMicrophoneAccess();
+      if (!res.granted || !res.stream) {
+        alert('Microphone access is required to record voice notes.');
+        return;
+      }
+
+      audioChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+
+      const recorder = new MediaRecorder(res.stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.start(250);
+      setIsRecordingVoice(true);
+      setVoiceSeconds(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setVoiceSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.warn('Could not start voice note recording', err);
+    }
+  };
+
+  const cancelVoiceRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    audioChunksRef.current = [];
+    setIsRecordingVoice(false);
+    setVoiceSeconds(0);
+  };
+
+  const sendVoiceRecording = () => {
+    if (!mediaRecorderRef.current) return;
+
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+
+    const duration = voiceSeconds;
+
+    mediaRecorderRef.current.onstop = () => {
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result as string;
+        void dispatchMessage({
+          text: '🎤 Voice message',
+          messageType: 'voice',
+          audioUrl: base64Audio,
+          durationSec: duration,
+        });
+      };
+      reader.readAsDataURL(blob);
+    };
+
+    mediaRecorderRef.current.stop();
+    setIsRecordingVoice(false);
+    setVoiceSeconds(0);
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const content = (textToSend || inputText).trim();
     if (!content || isSending) return;
 
+    setInputText('');
+    await dispatchMessage({ text: content, messageType: 'text' });
+  };
+
+  const dispatchMessage = async (msgPayload: {
+    text: string;
+    messageType?: 'text' | 'voice';
+    audioUrl?: string;
+    durationSec?: number;
+  }) => {
     setIsSending(true);
 
     const tempId = `msg-${Date.now()}`;
@@ -196,19 +426,24 @@ export default function InAppChatModal({
       senderRole: myRole,
       recipientId: contactId,
       recipientName: contactName,
-      text: content,
+      text: msgPayload.text,
+      messageType: msgPayload.messageType || 'text',
+      audioUrl: msgPayload.audioUrl,
+      durationSec: msgPayload.durationSec,
       timestamp: new Date().toISOString(),
       read: isRecipientOnline,
       contactId,
     };
 
     setMessages((prev) => [...prev, userMsg]);
-    setInputText('');
     playMessageChime();
 
     try {
       const saved = await apiPost<ChatMessage>('/app/chat', {
-        text: content,
+        text: msgPayload.text,
+        messageType: msgPayload.messageType || 'text',
+        audioUrl: msgPayload.audioUrl,
+        durationSec: msgPayload.durationSec,
         senderId: myUserId,
         senderName: myName,
         senderRole: myRole,
@@ -226,14 +461,15 @@ export default function InAppChatModal({
         recipientId: contactId,
         recipientName: contactName,
         recipientRole: contactRole,
-        text: content,
+        text: msgPayload.text,
+        messageType: msgPayload.messageType || 'text',
+        audioUrl: msgPayload.audioUrl,
+        durationSec: msgPayload.durationSec,
         senderId: myUserId,
         senderName: myName,
         senderRole: myRole,
       });
-    } catch {
-      // Message remains in state
-    } finally {
+    } catch {} finally {
       setIsSending(false);
     }
   };
@@ -302,7 +538,7 @@ export default function InAppChatModal({
           </div>
         </div>
 
-        {/* Clear Sender & Recipient Bar (Never text yourself) */}
+        {/* Sender & Recipient Switcher Bar */}
         <div className="flex items-center justify-between px-4 py-2 bg-slate-800/80 border-b border-slate-700/60 text-xs">
           <div className="flex items-center gap-2">
             <span className="text-slate-400 font-medium flex items-center gap-1">
@@ -334,7 +570,7 @@ export default function InAppChatModal({
         {/* Status banner if recipient is offline */}
         {!isRecipientOnline && (
           <div className="px-4 py-2 bg-slate-800/60 border-b border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Recipient is currently offline. Messages are saved to the database and will be delivered upon login.</span>
+            <span>Recipient is currently offline. Messages & voice notes are saved in DB and delivered on login.</span>
             <a href={`tel:${contactPhone}`} className="text-emerald-400 hover:underline flex items-center gap-1 ml-2 flex-shrink-0">
               <Phone className="w-3 h-3" /> Call GSM
             </a>
@@ -345,6 +581,8 @@ export default function InAppChatModal({
         <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-950/50">
           {messages.map((msg) => {
             const isMe = msg.senderId === myUserId || msg.senderId === 'me';
+            const isVoice = msg.messageType === 'voice' || Boolean(msg.audioUrl);
+
             return (
               <div
                 key={msg.id}
@@ -360,7 +598,15 @@ export default function InAppChatModal({
                       : 'bg-slate-800 text-slate-200 border border-slate-700/80 rounded-bl-sm'
                   }`}
                 >
-                  {msg.text}
+                  {isVoice && msg.audioUrl ? (
+                    <VoiceNoteBubble
+                      audioUrl={msg.audioUrl}
+                      durationSec={msg.durationSec}
+                      isMe={isMe}
+                    />
+                  ) : (
+                    msg.text
+                  )}
                 </div>
               </div>
             );
@@ -381,26 +627,82 @@ export default function InAppChatModal({
           ))}
         </div>
 
-        {/* Chat Input Field */}
-        <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleSendMessage();
-            }}
-            placeholder={`Message ${contactName}...`}
-            className="flex-1 px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
-          />
-          <button
-            onClick={() => void handleSendMessage()}
-            disabled={!inputText.trim() || isSending}
-            className="p-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white shadow-md shadow-brand-600/20 transition-all flex-shrink-0"
-            title="Send Real Message"
-          >
-            <Send className="w-4 h-4" />
-          </button>
+        {/* Bottom Input Area: Text Input OR WhatsApp Style Voice Recording Bar */}
+        <div className="p-3 bg-slate-900 border-t border-slate-800">
+          {isRecordingVoice ? (
+            <div className="flex items-center justify-between gap-3 bg-slate-800/90 border border-rose-500/40 rounded-2xl px-4 py-2.5 animate-fade-in">
+              <div className="flex items-center gap-2.5">
+                <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping" />
+                <span className="text-xs font-semibold text-rose-400">
+                  Recording Voice Note...
+                </span>
+                <span className="font-mono text-xs text-white font-bold ml-1">
+                  {Math.floor(voiceSeconds / 60)}:{(voiceSeconds % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+
+              {/* Animated visualizer bars */}
+              <div className="flex items-center gap-1 h-5">
+                {[40, 80, 50, 95, 60, 85].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-1 bg-rose-400 rounded-full animate-pulse"
+                    style={{ height: `${h}%`, animationDelay: `${i * 0.1}s` }}
+                  />
+                ))}
+              </div>
+
+              {/* Discard & Send Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={cancelVoiceRecording}
+                  className="p-2 rounded-xl bg-slate-700 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                  title="Discard Voice Note"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={sendVoiceRecording}
+                  className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/30 transition-transform active:scale-95"
+                  title="Send WhatsApp-style Voice Note"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleSendMessage();
+                }}
+                placeholder={`Message ${contactName}...`}
+                className="flex-1 px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+              />
+
+              {/* WhatsApp-Style Voice Record Button */}
+              <button
+                onClick={startVoiceRecording}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-emerald-600/20 text-slate-300 hover:text-emerald-400 border border-slate-700 hover:border-emerald-500/40 transition-all flex-shrink-0"
+                title="Hold or Click to Record WhatsApp Voice Note"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+
+              {/* Send Button */}
+              <button
+                onClick={() => void handleSendMessage()}
+                disabled={!inputText.trim() || isSending}
+                className="p-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-40 text-white shadow-md shadow-brand-600/20 transition-all flex-shrink-0"
+                title="Send Message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

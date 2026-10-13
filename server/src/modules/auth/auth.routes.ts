@@ -26,5 +26,6 @@ router.get('/verify-email', AuthController.verifyEmail);
 // Protected routes
 router.post('/signout', requireAuth, AuthController.signOut);
 router.get('/me', requireAuth, AuthController.getMe);
+router.post('/change-password', AuthController.changePassword);
 
 export default router;

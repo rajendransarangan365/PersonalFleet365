@@ -19,6 +19,7 @@ export interface CallSession {
   targetPhone?: string;
   status: 'calling' | 'ringing' | 'incoming' | 'connected' | 'rejected' | 'ended' | 'offline';
   errorMessage?: string;
+  isCaller?: boolean;
   startedAt: string;
 }
 
@@ -69,6 +70,7 @@ class CallSignalingManager {
     socket.on('call:incoming', (session: CallSession) => {
       this.currentSession = {
         ...session,
+        isCaller: false,
         status: 'incoming',
       };
       if (!this.ringController) {
@@ -204,6 +206,7 @@ class CallSignalingManager {
       targetPhone: target.phone,
       vehiclePlate: target.vehiclePlate,
       status: 'calling',
+      isCaller: true,
       startedAt: new Date().toISOString(),
     };
 

@@ -16,11 +16,11 @@ interface UserProfileModalProps {
 const PERSONA_OPTIONS = [
   {
     role: 'fleet_owner',
-    name: 'Sarangan (Fleet Owner)',
-    email: 'owner@fleetwise.in',
-    badge: '👑 Fleet Owner (Admin)',
+    name: 'Sarangan (Company Owner)',
+    email: 'sarangan365@gmail.com',
+    badge: '👑 Company Owner',
     target: '/dashboard',
-    color: 'from-brand-600 to-indigo-600',
+    color: 'from-amber-600 via-brand-600 to-indigo-600',
     description: 'Full access to all 12 modules, staff management & finance',
   },
   {

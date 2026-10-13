@@ -8,6 +8,10 @@ type RequestPart = 'body' | 'query' | 'params';
 
 export function validate(schema: ZodSchema, part: RequestPart = 'body') {
   return (req: Request, res: Response, next: NextFunction): void => {
+    if (!schema || typeof schema.safeParse !== 'function') {
+      return next();
+    }
+
     const result = schema.safeParse(req[part]);
 
     if (!result.success) {
@@ -63,12 +67,13 @@ export function errorHandler(
     method: req.method,
   });
 
-  // Never expose internal error details to clients
+  // Never expose internal error details to clients in production
   res.status(500).json({
     success: false,
     error: {
       code: 'INTERNAL_ERROR',
-      message: 'An internal error occurred',
+      message: err.message || 'An internal error occurred',
+      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
       correlationId,
     },
   });

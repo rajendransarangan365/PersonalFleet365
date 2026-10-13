@@ -110,12 +110,15 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       broadcastOnlineUsers();
     });
 
-    // ─── Chat Message (Real DB & Live Delivery, NO Ghost Replies) ─────────
+    // ─── Chat Message (Real DB & Live Delivery, Text & Voice Notes) ──────
     socket.on('chat:send', async (msgData: {
       recipientId: string;
       recipientName?: string;
       recipientRole?: string;
       text: string;
+      messageType?: 'text' | 'voice';
+      audioUrl?: string;
+      durationSec?: number;
       senderId?: string;
       senderName?: string;
       senderRole?: string;
@@ -127,8 +130,10 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       const senderName = senderInfo?.displayName || msgData.senderName || 'Fleet Operator';
       const senderRole = senderInfo?.role || msgData.senderRole || 'admin';
       const businessId = senderInfo?.businessId || msgData.businessId || 'demo_fleet_biz_01';
+      const messageType = msgData.messageType || 'text';
+      const contentText = msgData.text?.trim() || (messageType === 'voice' ? '🎤 Voice message' : '');
 
-      if (!msgData.text || !msgData.text.trim()) return;
+      if (!contentText && !msgData.audioUrl) return;
 
       const isRecipientOnline = isUserOnline(msgData.recipientId);
 
@@ -141,7 +146,10 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
           recipientId: msgData.recipientId,
           recipientName: msgData.recipientName,
           recipientRole: msgData.recipientRole,
-          text: msgData.text.trim(),
+          text: contentText,
+          messageType,
+          audioUrl: msgData.audioUrl,
+          durationSec: msgData.durationSec || 0,
           read: isRecipientOnline,
           businessId,
         });
@@ -156,7 +164,10 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
           recipientId: msgData.recipientId,
           recipientName: msgData.recipientName,
           recipientRole: msgData.recipientRole,
-          text: msgData.text.trim(),
+          text: contentText,
+          messageType,
+          audioUrl: msgData.audioUrl,
+          durationSec: msgData.durationSec || 0,
           read: isRecipientOnline,
           businessId,
           createdAt: new Date(),
@@ -166,7 +177,6 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
       // Acknowledge back to sender
       socket.emit('chat:sent', savedMsg);
 
-      // Deliver to recipient if online
       // Deliver to recipient if online and not self
       if (isRecipientOnline && msgData.recipientId !== senderUserId) {
         io?.to(`user:${msgData.recipientId}`).emit('chat:receive', savedMsg);
@@ -174,17 +184,44 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
         logger.info(`Recipient ${msgData.recipientId} is offline. Message saved in DB as unread.`);
       }
 
-      // If driver sent message, also notify owner & manager
-      if (senderRole === 'driver') {
-        const notif = {
+      // Create and deliver real notification to recipient
+      try {
+        const notifTitle = messageType === 'voice'
+          ? `🎤 Voice Note from ${senderName}`
+          : `💬 Message from ${senderName}`;
+        const notifBody = messageType === 'voice'
+          ? `${senderName} sent a ${msgData.durationSec || 0}s voice note`
+          : `${senderName}: "${contentText.slice(0, 60)}${contentText.length > 60 ? '...' : ''}"`;
+
+        const notifDoc = await NotificationModel.create({
+          businessId,
+          userId: msgData.recipientId,
           type: 'chat',
-          title: `Message from Driver (${senderName})`,
-          message: `${senderName}: "${msgData.text.slice(0, 60)}"`,
+          title: notifTitle,
+          message: notifBody,
+          isRead: false,
+        });
+
+        const notifPayload = {
+          id: String(notifDoc._id),
+          type: 'chat',
+          title: notifTitle,
+          message: notifBody,
           timestamp: new Date().toISOString(),
-          actionUrl: '/trips',
+          actionUrl: '/messages',
+          senderId: senderUserId,
+          senderName,
         };
-        io?.to('role:fleet_owner').emit('notification:new', notif);
-        io?.to('role:fleet_manager').emit('notification:new', notif);
+
+        io?.to(`user:${msgData.recipientId}`).emit('notification:new', notifPayload);
+
+        // If driver sent message, also notify owner & manager
+        if (senderRole === 'driver') {
+          io?.to('role:fleet_owner').emit('notification:new', notifPayload);
+          io?.to('role:fleet_manager').emit('notification:new', notifPayload);
+        }
+      } catch (err) {
+        logger.warn('Failed to persist notification for chat message', { err });
       }
     });
 
@@ -316,11 +353,63 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
 
     // WebRTC Signaling Relay (SDP Offer / Answer / ICE Candidates)
     socket.on('call:webrtc_signal', (payload: { targetUserId: string; signal: unknown }) => {
+      const senderUserId = socketToUserId.get(socket.id) || 'caller';
       if (payload.targetUserId) {
         io?.to(`user:${payload.targetUserId}`).emit('call:webrtc_signal', {
+          senderUserId,
           senderSocketId: socket.id,
           signal: payload.signal,
         });
+      }
+    });
+
+    socket.on('webrtc:offer', (payload: { targetUserId: string; offer: unknown; callId?: string }) => {
+      const senderUserId = socketToUserId.get(socket.id) || 'caller';
+      logger.info(`WebRTC offer relayed from ${senderUserId} to ${payload.targetUserId}`);
+      io?.to(`user:${payload.targetUserId}`).emit('webrtc:offer', {
+        senderUserId,
+        senderSocketId: socket.id,
+        offer: payload.offer,
+        callId: payload.callId,
+      });
+    });
+
+    socket.on('webrtc:answer', (payload: { targetUserId: string; answer: unknown; callId?: string }) => {
+      const senderUserId = socketToUserId.get(socket.id) || 'callee';
+      logger.info(`WebRTC answer relayed from ${senderUserId} to ${payload.targetUserId}`);
+      io?.to(`user:${payload.targetUserId}`).emit('webrtc:answer', {
+        senderUserId,
+        senderSocketId: socket.id,
+        answer: payload.answer,
+        callId: payload.callId,
+      });
+    });
+
+    socket.on('webrtc:ice_candidate', (payload: { targetUserId: string; candidate: unknown; callId?: string }) => {
+      const senderUserId = socketToUserId.get(socket.id) || 'peer';
+      io?.to(`user:${payload.targetUserId}`).emit('webrtc:ice_candidate', {
+        senderUserId,
+        senderSocketId: socket.id,
+        candidate: payload.candidate,
+        callId: payload.callId,
+      });
+    });
+
+    // Save Call Voice Recording
+    socket.on('call:save_recording', async (data: { callId: string; recordingUrl: string; duration?: number }) => {
+      try {
+        await CallLogModel.findOneAndUpdate(
+          { callId: data.callId },
+          {
+            isRecorded: true,
+            recordingUrl: data.recordingUrl,
+            durationSeconds: data.duration,
+          },
+          { upsert: true }
+        );
+        logger.info(`🎙️ Call recording saved for session: ${data.callId}`);
+      } catch (err) {
+        logger.warn('Failed to save call recording log', { err });
       }
     });
 

@@ -5,9 +5,11 @@ import {
   FileBarChart, Settings, Calculator, LogOut, Bell, ChevronLeft,
   ChevronRight, Menu, X, Truck, Building2, ChevronDown, Sparkles,
   Navigation, PlusCircle, MessageSquare, Phone, Users, ShieldAlert,
-  AlertTriangle, ShieldCheck
+  AlertTriangle, ShieldCheck, Mic
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
+import { getSocket } from '../services/socket.client.js';
+import { playMessageChime } from '../utils/audioAlerts.js';
 import VersionUpdateModal from '../components/VersionUpdateModal.js';
 import VersionUpdateToast from '../components/VersionUpdateToast.js';
 import OnboardingWizardModal from '../components/OnboardingWizardModal.js';
@@ -36,6 +38,7 @@ export function getNavItemsForRole(role: string) {
   if (role === 'driver') {
     return [
       { icon: Navigation, label: 'Driver Console & GPS', path: '/driver-portal' },
+      { icon: MessageSquare, label: 'Messages & Dispatch', path: '/messages' },
       { icon: Car, label: 'My Taxi Bookings', path: '/taxi-bookings' },
       { icon: Car, label: 'Assigned Vehicle', path: '/vehicles' },
     ];
@@ -43,12 +46,14 @@ export function getNavItemsForRole(role: string) {
   if (role === 'customer') {
     return [
       { icon: Users, label: 'Book Taxi & Ride Portal', path: '/bookings' },
+      { icon: MessageSquare, label: 'Messages & Support', path: '/messages' },
       { icon: Car, label: 'My Bookings & Receipts', path: '/taxi-bookings' },
     ];
   }
   if (role === 'telecaller' || role === 'support') {
     return [
       { icon: Car, label: 'Taxi Bookings & Support Desk', path: '/taxi-bookings' },
+      { icon: MessageSquare, label: 'Messages & VoIP', path: '/messages' },
       { icon: Navigation, label: 'Driver Duty Roster', path: '/driver-portal' },
       { icon: Users, label: 'Customer Portal', path: '/bookings' },
     ];
@@ -56,6 +61,7 @@ export function getNavItemsForRole(role: string) {
   if (role === 'fleet_manager' || role === 'operations_manager') {
     return [
       { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+      { icon: MessageSquare, label: 'Messages & Dispatch', path: '/messages' },
       { icon: Car, label: 'Taxi Bookings & Dispatch', path: '/taxi-bookings' },
       { icon: Navigation, label: 'Driver Console & GPS', path: '/driver-portal' },
       { icon: MapPin, label: 'Trips', path: '/trips' },
@@ -69,6 +75,7 @@ export function getNavItemsForRole(role: string) {
   // Default: Fleet Owner (Full commercial OS suite)
   return [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: MessageSquare, label: 'Messages & VoIP', path: '/messages' },
     { icon: Car, label: 'Taxi Bookings & Dispatch', path: '/taxi-bookings' },
     { icon: Navigation, label: 'Driver Console & GPS', path: '/driver-portal' },
     { icon: Users, label: 'Customer Ride Portal', path: '/customer' },
@@ -87,6 +94,7 @@ export function getBottomNavForRole(role: string) {
   if (role === 'driver') {
     return [
       { icon: Navigation, label: 'Console', path: '/driver-portal' },
+      { icon: MessageSquare, label: 'Messages', path: '/messages' },
       { icon: Car, label: 'Bookings', path: '/taxi-bookings' },
       { icon: Car, label: 'Vehicle', path: '/vehicles' },
     ];
@@ -94,21 +102,23 @@ export function getBottomNavForRole(role: string) {
   if (role === 'customer') {
     return [
       { icon: Users, label: 'Book Ride', path: '/customer' },
+      { icon: MessageSquare, label: 'Messages', path: '/messages' },
       { icon: Car, label: 'Bookings', path: '/taxi-bookings' },
     ];
   }
   if (role === 'telecaller' || role === 'support') {
     return [
       { icon: Car, label: 'Bookings', path: '/taxi-bookings' },
+      { icon: MessageSquare, label: 'Messages', path: '/messages' },
       { icon: Navigation, label: 'Drivers', path: '/driver-portal' },
       { icon: Users, label: 'Customers', path: '/customer' },
     ];
   }
   return [
     { icon: LayoutDashboard, label: 'Home', path: '/dashboard' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages' },
     { icon: Car, label: 'Bookings', path: '/taxi-bookings' },
     { icon: Navigation, label: 'Drivers', path: '/driver-portal' },
-    { icon: MapPin, label: 'Trips', path: '/trips' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 }
@@ -138,6 +148,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
     return Boolean(user?.email?.includes('temp') || localStorage.getItem('fleet_must_change_pwd') === 'true');
   });
   const [activeAlertToast, setActiveAlertToast] = useState<{ title: string; message: string; type: 'driver_offline' | 'support' } | null>(null);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [activeChatMessageToast, setActiveChatMessageToast] = useState<{
+    senderId: string;
+    senderName: string;
+    senderRole?: string;
+    text: string;
+    messageType?: 'text' | 'voice';
+    durationSec?: number;
+    timestamp: string;
+  } | null>(null);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [fleetPermissions, setFleetPermissions] = useState<FleetPermissionsState>(() => getCurrentFleetPermissions());
@@ -192,6 +212,66 @@ export default function AppLayout({ children }: AppLayoutProps) {
       window.removeEventListener('fleet:support-alert', handleSupportAlert);
     };
   }, []);
+
+  // Real-time Chat message & Notification listeners
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleChatReceive = (msg: any) => {
+      const myId = (user as any)?.id || (user as any)?._id || 'owner-01';
+      if (msg.senderId === myId) return;
+
+      playMessageChime();
+      setUnreadMessagesCount((prev) => prev + 1);
+
+      // Show toast if not actively messaging in MessagesPage or ChatModal with that sender
+      setActiveChatMessageToast({
+        senderId: msg.senderId,
+        senderName: msg.senderName || 'Contact',
+        senderRole: msg.senderRole,
+        text: msg.text || '',
+        messageType: msg.messageType,
+        durationSec: msg.durationSec,
+        timestamp: msg.timestamp || new Date().toISOString(),
+      });
+
+      // Browser native notification if permission granted
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        const notifTitle = msg.messageType === 'voice'
+          ? `🎤 Voice Note from ${msg.senderName}`
+          : `💬 New Message from ${msg.senderName}`;
+        const notifBody = msg.messageType === 'voice'
+          ? `${msg.senderName} sent a ${msg.durationSec || 0}s voice note`
+          : msg.text;
+
+        new Notification(notifTitle, {
+          body: notifBody,
+          icon: '/favicon.ico',
+        });
+      }
+    };
+
+    const handleNewNotif = () => {
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on('chat:receive', handleChatReceive);
+    socket.on('notification:new', handleNewNotif);
+
+    return () => {
+      socket.off('chat:receive', handleChatReceive);
+      socket.off('notification:new', handleNewNotif);
+    };
+  }, [user]);
+
+  // Auto-dismiss chat toast after 7s
+  useEffect(() => {
+    if (!activeChatMessageToast) return;
+    const timer = setTimeout(() => {
+      setActiveChatMessageToast(null);
+    }, 7000);
+    return () => clearTimeout(timer);
+  }, [activeChatMessageToast]);
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -411,14 +491,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
               </span>
             </button>
 
-            {/* In-App Direct Chat & Contact Directory */}
+            {/* In-App Direct Chat & Messages Center */}
             <button
-              onClick={() => setIsContactDirectoryOpen(true)}
-              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-cyan-400 hover:text-cyan-300 border border-slate-700/60 transition-colors"
-              title="Open Live Dispatch Chat & Contact Directory"
+              onClick={() => {
+                setUnreadMessagesCount(0);
+                navigate('/messages');
+              }}
+              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-cyan-400 hover:text-cyan-300 border border-slate-700/60 transition-colors relative"
+              title="Open Live Messages & Dispatch Communications (/messages)"
               id="header-chat-button"
             >
               <MessageSquare className="w-4 h-4" />
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-slate-950 font-bold text-[10px] flex items-center justify-center animate-pulse shadow-sm">
+                  {unreadMessagesCount}
+                </span>
+              )}
             </button>
 
             {/* In-App Direct Voice Call & Contact Directory */}
@@ -672,6 +760,66 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <button
               onClick={() => setActiveAlertToast(null)}
               className="text-slate-400 hover:text-white p-1 rounded-lg"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Real-Time Incoming Chat / Voice Note Notification Toast */}
+      {activeChatMessageToast && (
+        <div className="fixed top-20 right-4 sm:right-6 z-60 max-w-sm w-full bg-slate-900/95 border border-cyan-500/40 rounded-2xl shadow-2xl p-3.5 backdrop-blur-md animate-slide-in">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-600 to-brand-500 flex items-center justify-center text-white font-bold text-xs shadow flex-shrink-0 mt-0.5">
+                {activeChatMessageToast.senderName[0]?.toUpperCase() ?? 'F'}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400">
+                    New Message
+                  </span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-[10px] text-slate-400">Just now</span>
+                </div>
+                <h4 className="font-bold text-white text-xs truncate">
+                  {activeChatMessageToast.senderName}
+                </h4>
+                <p className="text-xs text-slate-300 mt-0.5 line-clamp-2">
+                  {activeChatMessageToast.messageType === 'voice' ? (
+                    <span className="text-emerald-400 flex items-center gap-1 font-medium">
+                      <Mic className="w-3.5 h-3.5" /> Voice note ({activeChatMessageToast.durationSec || 0}s)
+                    </span>
+                  ) : (
+                    activeChatMessageToast.text
+                  )}
+                </p>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setActiveChatMessageToast(null);
+                      setUnreadMessagesCount(0);
+                      navigate('/messages');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-bold transition-all shadow-sm flex items-center gap-1"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    <span>Open Messages</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveChatMessageToast(null)}
+                    className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[11px] transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActiveChatMessageToast(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg flex-shrink-0"
             >
               <X className="w-4 h-4" />
             </button>

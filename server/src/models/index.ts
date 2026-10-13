@@ -826,6 +826,9 @@ export interface IChatMessage extends Document {
   recipientName?: string;
   recipientRole?: string;
   text: string;
+  messageType: 'text' | 'voice';
+  audioUrl?: string;
+  durationSec?: number;
   read: boolean;
   businessId?: string;
   createdAt: Date;
@@ -841,6 +844,9 @@ const ChatMessageSchema = new Schema<IChatMessage>(
     recipientName: String,
     recipientRole: String,
     text: { type: String, required: true },
+    messageType: { type: String, enum: ['text', 'voice'], default: 'text' },
+    audioUrl: String,
+    durationSec: { type: Number, default: 0 },
     read: { type: Boolean, default: false },
     businessId: { type: String, default: 'demo_fleet_biz_01' },
   },
@@ -866,6 +872,8 @@ export interface ICallLog extends Document {
   vehiclePlate?: string;
   status: 'completed' | 'missed' | 'rejected' | 'offline_failed';
   durationSeconds: number;
+  isRecorded?: boolean;
+  recordingUrl?: string;
   startedAt: Date;
   endedAt?: Date;
   businessId?: string;
@@ -889,6 +897,8 @@ const CallLogSchema = new Schema<ICallLog>(
       default: 'completed',
     },
     durationSeconds: { type: Number, default: 0 },
+    isRecorded: { type: Boolean, default: false },
+    recordingUrl: String,
     startedAt: { type: Date, default: Date.now },
     endedAt: Date,
     businessId: { type: String, default: 'demo_fleet_biz_01' },

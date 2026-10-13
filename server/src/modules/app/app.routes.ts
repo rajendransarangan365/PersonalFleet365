@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import versionData from '../../version.json';
 import {
   ChatMessageModel,
@@ -98,6 +99,9 @@ router.get('/chat', async (req: Request, res: Response) => {
         recipientId: m.recipientId,
         recipientName: m.recipientName,
         text: m.text,
+        messageType: m.messageType || 'text',
+        audioUrl: m.audioUrl,
+        durationSec: m.durationSec || 0,
         timestamp: m.createdAt ? new Date(m.createdAt).toISOString() : new Date().toISOString(),
         read: m.read,
       })),
@@ -108,10 +112,63 @@ router.get('/chat', async (req: Request, res: Response) => {
   }
 });
 
+// List Conversations (Inbox grouped by counterpart from real DB)
+router.get('/chat/conversations', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.query.userId as string) || 'owner-01';
+
+    const messages = await ChatMessageModel.find({
+      $or: [{ senderId: userId }, { recipientId: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const convoMap = new Map<string, any>();
+    for (const m of messages) {
+      const isSender = m.senderId === userId;
+      const counterpartId = isSender ? m.recipientId : m.senderId;
+      const counterpartName = isSender ? (m.recipientName || 'Contact') : m.senderName;
+      const counterpartRole = isSender ? (m.recipientRole || 'driver') : m.senderRole;
+
+      if (!convoMap.has(counterpartId)) {
+        convoMap.set(counterpartId, {
+          counterpartId,
+          counterpartName,
+          counterpartRole,
+          lastMessage: {
+            id: String(m._id),
+            text: m.text,
+            messageType: m.messageType || 'text',
+            durationSec: m.durationSec || 0,
+            timestamp: m.createdAt ? new Date(m.createdAt).toISOString() : new Date().toISOString(),
+            isMe: isSender,
+          },
+          unreadCount: 0,
+        });
+      }
+
+      if (!isSender && !m.read) {
+        convoMap.get(counterpartId).unreadCount += 1;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: Array.from(convoMap.values()),
+    });
+  } catch (err) {
+    logger.error('Error fetching conversations', { err });
+    res.json({ success: true, data: [] });
+  }
+});
+
 router.post('/chat', async (req: Request, res: Response) => {
   try {
     const {
       text,
+      messageType = 'text',
+      audioUrl,
+      durationSec = 0,
       senderId = 'owner-01',
       senderRole = 'fleet_owner',
       senderName = 'Fleet Owner (Sarangan)',
@@ -120,7 +177,10 @@ router.post('/chat', async (req: Request, res: Response) => {
       recipientRole = 'driver',
       businessId = 'demo_fleet_biz_01',
     } = req.body as {
-      text: string;
+      text?: string;
+      messageType?: 'text' | 'voice';
+      audioUrl?: string;
+      durationSec?: number;
       senderId?: string;
       senderRole?: string;
       senderName?: string;
@@ -130,8 +190,10 @@ router.post('/chat', async (req: Request, res: Response) => {
       businessId?: string;
     };
 
-    if (!text || !text.trim()) {
-      res.status(400).json({ success: false, message: 'Message text is required' });
+    const contentText = text?.trim() || (messageType === 'voice' ? '🎤 Voice message' : '');
+
+    if (!contentText && !audioUrl) {
+      res.status(400).json({ success: false, message: 'Message text or voice note is required' });
       return;
     }
 
@@ -144,7 +206,10 @@ router.post('/chat', async (req: Request, res: Response) => {
       recipientId,
       recipientName,
       recipientRole,
-      text: text.trim(),
+      text: contentText,
+      messageType,
+      audioUrl,
+      durationSec,
       read: recipientOnline,
       businessId,
     });
@@ -157,6 +222,9 @@ router.post('/chat', async (req: Request, res: Response) => {
       recipientId: newMsg.recipientId,
       recipientName: newMsg.recipientName,
       text: newMsg.text,
+      messageType: newMsg.messageType,
+      audioUrl: newMsg.audioUrl,
+      durationSec: newMsg.durationSec,
       timestamp: new Date(newMsg.createdAt).toISOString(),
       read: newMsg.read,
       isRecipientOnline: recipientOnline,
@@ -170,18 +238,43 @@ router.post('/chat', async (req: Request, res: Response) => {
       }
       io.to(`user:${senderId}`).emit('chat:sent', formatted);
 
-      // If driver sent message, create notification for owner
-      if (senderRole === 'driver') {
+      // Create and deliver real notification to recipient
+      try {
+        const notifTitle = messageType === 'voice'
+          ? `🎤 Voice Note from ${senderName}`
+          : `💬 Message from ${senderName}`;
+        const notifBody = messageType === 'voice'
+          ? `${senderName} sent a ${durationSec}s voice note`
+          : `${senderName}: "${contentText.slice(0, 60)}${contentText.length > 60 ? '...' : ''}"`;
+
         const notif = await NotificationModel.create({
           businessId,
+          userId: recipientId,
           type: 'chat',
-          title: `Message from Driver (${senderName})`,
-          message: `${senderName}: "${newMsg.text.slice(0, 50)}${newMsg.text.length > 50 ? '...' : ''}"`,
+          title: notifTitle,
+          message: notifBody,
           isRead: false,
         });
 
-        io.to('role:fleet_owner').emit('notification:new', notif);
-        io.to('role:fleet_manager').emit('notification:new', notif);
+        const notifPayload = {
+          id: String(notif._id),
+          type: 'chat',
+          title: notifTitle,
+          message: notifBody,
+          timestamp: new Date().toISOString(),
+          actionUrl: '/messages',
+          senderId,
+          senderName,
+        };
+
+        io.to(`user:${recipientId}`).emit('notification:new', notifPayload);
+
+        if (senderRole === 'driver') {
+          io.to('role:fleet_owner').emit('notification:new', notifPayload);
+          io.to('role:fleet_manager').emit('notification:new', notifPayload);
+        }
+      } catch (err) {
+        logger.warn('Failed to persist notification for chat message', { err });
       }
     }
 
@@ -189,6 +282,89 @@ router.post('/chat', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('Error saving chat message', { err });
     res.status(500).json({ success: false, message: 'Failed to send chat message' });
+  }
+});
+
+// Call Logs endpoint (from MongoDB)
+router.get('/call/logs', async (req: Request, res: Response) => {
+  try {
+    const userId = req.query.userId as string;
+    const query: any = {};
+    if (userId) {
+      query.$or = [{ callerId: userId }, { targetId: userId }];
+    }
+    const logs = await CallLogModel.find(query).sort({ startedAt: -1 }).limit(50).lean();
+    res.json({
+      success: true,
+      data: logs.map((l) => ({
+        id: String(l._id),
+        callId: l.callId,
+        callerId: l.callerId,
+        callerName: l.callerName,
+        callerRole: l.callerRole,
+        callerPhone: l.callerPhone,
+        targetId: l.targetId,
+        targetName: l.targetName,
+        targetRole: l.targetRole,
+        targetPhone: l.targetPhone,
+        vehiclePlate: l.vehiclePlate,
+        status: l.status,
+        durationSeconds: l.durationSeconds,
+        isRecorded: l.isRecorded,
+        recordingUrl: l.recordingUrl,
+        startedAt: l.startedAt ? new Date(l.startedAt).toISOString() : new Date().toISOString(),
+        endedAt: l.endedAt ? new Date(l.endedAt).toISOString() : undefined,
+      })),
+    });
+  } catch (err) {
+    logger.error('Error fetching call logs', { err });
+    res.json({ success: true, data: [] });
+  }
+});
+
+router.post('/call/log', async (req: Request, res: Response) => {
+  try {
+    const {
+      callId,
+      callerId = 'owner-01',
+      callerName = 'Fleet Owner',
+      callerRole = 'fleet_owner',
+      targetId,
+      targetName,
+      targetRole = 'driver',
+      status = 'completed',
+      durationSeconds = 0,
+      isRecorded = false,
+      recordingUrl,
+    } = req.body;
+
+    if (!callId) {
+      res.status(400).json({ success: false, message: 'callId is required' });
+      return;
+    }
+
+    const log = await CallLogModel.findOneAndUpdate(
+      { callId },
+      {
+        callerId,
+        callerName,
+        callerRole,
+        targetId,
+        targetName,
+        targetRole,
+        status,
+        durationSeconds,
+        isRecorded,
+        ...(recordingUrl ? { recordingUrl } : {}),
+        endedAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true, data: log });
+  } catch (err) {
+    logger.error('Error saving call log', { err });
+    res.status(500).json({ success: false, message: 'Failed to save call log' });
   }
 });
 
@@ -771,6 +947,8 @@ router.get('/staff', async (_req: Request, res: Response) => {
 router.post('/staff', async (req: Request, res: Response) => {
   try {
     const {
+      userId,
+      oldEmail,
       name,
       email,
       phone,
@@ -787,15 +965,28 @@ router.post('/staff', async (req: Request, res: Response) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const targetRole = role === 'owner' ? 'fleet_owner' : role === 'manager' ? 'fleet_manager' : role;
 
-    // Check if user already exists
-    let existingUser = await UserModel.findOne({ email: normalizedEmail });
+    // Check if user already exists by ID, oldEmail, or email
+    let existingUser = null;
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      existingUser = await UserModel.findById(userId);
+    }
+    if (!existingUser && oldEmail) {
+      existingUser = await UserModel.findOne({ email: oldEmail.toLowerCase().trim() });
+    }
+    if (!existingUser) {
+      existingUser = await UserModel.findOne({ email: normalizedEmail });
+    }
+
     if (existingUser) {
       existingUser.displayName = name;
-      existingUser.role = role;
+      existingUser.email = normalizedEmail;
+      existingUser.role = targetRole;
       if (phone) existingUser.phone = phone;
       if (password) existingUser.passwordHash = await hashPassword(password);
       await existingUser.save();
+      logger.info('Updated staff credentials & role', { email: normalizedEmail, role: targetRole });
     } else {
       const passwordHash = await hashPassword(password);
       existingUser = await UserModel.create({
@@ -803,16 +994,21 @@ router.post('/staff', async (req: Request, res: Response) => {
         passwordHash,
         displayName: name,
         phone: phone || '',
-        role,
+        role: targetRole,
         isActive: true,
         emailVerified: true,
       });
+      logger.info('Created new staff member', { email: normalizedEmail, role: targetRole });
     }
 
-    // Attach membership if business exists
-    const targetBusiness = businessId
-      ? await BusinessModel.findById(businessId)
-      : await BusinessModel.findOne();
+    // Attach membership to Company Owner's business
+    let targetBusiness = businessId ? await BusinessModel.findById(businessId) : null;
+    if (!targetBusiness) {
+      const ownerUser = await UserModel.findOne({ email: 'sarangan365@gmail.com' });
+      targetBusiness = ownerUser
+        ? await BusinessModel.findOne({ ownerId: ownerUser._id })
+        : await BusinessModel.findOne();
+    }
 
     if (targetBusiness) {
       await BusinessMembershipModel.findOneAndUpdate(
@@ -820,16 +1016,16 @@ router.post('/staff', async (req: Request, res: Response) => {
         {
           businessId: targetBusiness._id,
           userId: existingUser._id,
-          role,
-          permissions: ['*'],
+          role: targetRole,
+          permissions: targetRole === 'fleet_owner' ? ['*'] : targetRole === 'fleet_manager' ? ['fleet:*', 'trips:*'] : ['driver:console'],
           isActive: true,
         },
         { upsert: true, new: true },
       );
     }
 
-    // If driver, register in DriverDutyModel
-    if (role === 'driver') {
+    // If driver, register or update in DriverDutyModel
+    if (targetRole === 'driver') {
       await DriverDutyModel.findOneAndUpdate(
         { driverId: String(existingUser._id) },
         {
@@ -856,8 +1052,39 @@ router.post('/staff', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    logger.error('Error creating staff member', { err });
-    res.status(500).json({ success: false, message: 'Failed to create staff member' });
+    logger.error('Error creating/updating staff member', { err });
+    res.status(500).json({ success: false, message: 'Failed to save staff member' });
+  }
+});
+
+router.delete('/staff/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ success: false, message: 'User ID is required' });
+      return;
+    }
+
+    const user = mongoose.Types.ObjectId.isValid(id) ? await UserModel.findById(id) : await UserModel.findOne({ email: id.toLowerCase().trim() });
+    if (!user) {
+      res.json({ success: true, message: 'Member not found or already deleted' });
+      return;
+    }
+
+    // Protect company owner from deletion
+    if (user.role === 'fleet_owner' || user.email === 'sarangan365@gmail.com') {
+      res.status(403).json({ success: false, message: 'Cannot delete the Company Owner' });
+      return;
+    }
+
+    await UserModel.deleteOne({ _id: user._id });
+    await BusinessMembershipModel.deleteMany({ userId: user._id });
+    await DriverDutyModel.deleteMany({ driverId: String(user._id) });
+
+    res.json({ success: true, message: 'Member removed successfully' });
+  } catch (err) {
+    logger.error('Error deleting staff member', { err });
+    res.status(500).json({ success: false, message: 'Failed to delete staff member' });
   }
 });
 
