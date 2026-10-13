@@ -140,7 +140,7 @@ export default function DigitalIdCardModal({
   const { contacts } = useContactsStore();
 
   const currentRole = (user as any)?.role || 'fleet_owner';
-  const defaultSelectedRole = initialRole || (
+  const roleToShow: 'driver' | 'manager' | 'owner' | 'telecaller' = initialRole || (
     currentRole === 'driver'
       ? 'driver'
       : currentRole === 'fleet_manager' || currentRole === 'manager'
@@ -150,13 +150,12 @@ export default function DigitalIdCardModal({
       : 'owner'
   );
 
-  const [selectedRole, setSelectedRole] = useState<'driver' | 'manager' | 'owner' | 'telecaller'>(defaultSelectedRole);
   const [activeSide, setActiveSide] = useState<'front' | 'back'>('front');
   const [isCopied, setIsCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  const card = OFFICIAL_ID_CARDS[selectedRole];
+  const card = OFFICIAL_ID_CARDS[roleToShow] || OFFICIAL_ID_CARDS.driver;
 
   const handlePrint = () => {
     window.print();
@@ -207,53 +206,7 @@ export default function DigitalIdCardModal({
           </button>
         </div>
 
-        {/* Role Switcher Pills */}
-        <div className="flex items-center justify-between gap-2 p-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl mb-5 overflow-x-auto text-xs">
-          <button
-            onClick={() => setSelectedRole('driver')}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
-              selectedRole === 'driver'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <span>🚕 Driver (Bala)</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-black/30 font-mono">DL</span>
-          </button>
 
-          <button
-            onClick={() => setSelectedRole('manager')}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
-              selectedRole === 'manager'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <span>💼 Manager (Madhan)</span>
-          </button>
-
-          <button
-            onClick={() => setSelectedRole('owner')}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
-              selectedRole === 'owner'
-                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <span>👑 Owner (Sarangan)</span>
-          </button>
-
-          <button
-            onClick={() => setSelectedRole('telecaller')}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
-              selectedRole === 'telecaller'
-                ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            }`}
-          >
-            <span>🎧 Support (Prasana)</span>
-          </button>
-        </div>
 
         {/* Card Side Toggle: Front / Back */}
         <div className="flex items-center justify-center gap-2 mb-4">
@@ -275,7 +228,7 @@ export default function DigitalIdCardModal({
                 : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
             }`}
           >
-            Back Card {selectedRole === 'driver' ? '(Driving Licence Details)' : '(Official Terms)'}
+            Back Card {roleToShow === 'driver' ? '(Driving Licence Details)' : '(Official Terms)'}
           </button>
         </div>
 

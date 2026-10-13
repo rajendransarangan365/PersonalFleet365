@@ -8,7 +8,6 @@ import {
 import InAppCallModal from '../../components/InAppCallModal.js';
 import InAppChatModal from '../../components/InAppChatModal.js';
 import IncomingCallModal from '../../components/IncomingCallModal.js';
-import LiveDemoPersonaBar from '../../components/LiveDemoPersonaBar.js';
 import FleetLogo from '../../components/FleetLogo.js';
 import { useContactsStore, type FleetContact } from '../../store/contacts.store.js';
 import { apiGet, apiPost, apiPatch } from '../../services/api.js';
@@ -650,8 +649,6 @@ export default function CustomerPortalPage() {
         </div>
       )}
 
-      {/* Live Testing Persona Switcher Bar */}
-      <LiveDemoPersonaBar />
     </div>
   );
 }

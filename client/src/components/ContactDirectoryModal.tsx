@@ -410,26 +410,6 @@ export default function ContactDirectoryModal({
                         {contact.email && (
                           <span className="text-slate-500 font-sans truncate">({contact.email})</span>
                         )}
-
-                        {/* Explicit Password Badge with 1-click Copy */}
-                        {contact.tempPassword && (
-                          <div className="flex items-center gap-1 bg-amber-500/15 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                            <KeyRound className="w-3 h-3 text-amber-400" />
-                            <span>Password: <b className="text-white select-all">{contact.tempPassword}</b></span>
-                            <button
-                              type="button"
-                              onClick={() => handleCopyPassword(contact.id, contact.tempPassword!)}
-                              className="ml-1 text-amber-400 hover:text-white transition-colors"
-                              title="Copy password to clipboard"
-                            >
-                              {copiedId === contact.id ? (
-                                <Check className="w-3 h-3 text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>

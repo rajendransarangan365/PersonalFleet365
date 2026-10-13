@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Sparkles, KeyRound, ShieldAlert, Copy, Check, ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { SignInSchema, type SignInInput } from '@fleetwise/shared';
 import { apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
@@ -11,29 +11,17 @@ import type { User } from '@fleetwise/shared';
 import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 import FleetLogo from '../../components/FleetLogo.js';
 
-interface SignInPageProps {
-  devMode?: boolean;
-}
-
-export default function SignInPage({ devMode }: SignInPageProps) {
+export default function SignInPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
   const { setTokenAndUser } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
-  // Check if accessed via secret /dev route or ?dev=1
-  const [isDevMode, setIsDevMode] = useState(() => {
-    return Boolean(devMode || location.pathname.includes('/dev') || searchParams.get('dev') === 'true' || searchParams.get('dev') === '1');
-  });
-
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SignInInput>({
     resolver: zodResolver(SignInSchema),
@@ -66,202 +54,104 @@ export default function SignInPage({ devMode }: SignInPageProps) {
 
         setSuccess(true);
         setTimeout(() => navigate(target), 400);
-      } catch (err: unknown) {
-        const emailLower = data.email.toLowerCase().trim();
-
-        // 1. Check dynamically created staff contacts from contactsStore or INITIAL_CONTACTS
-        const { contacts } = useContactsStore.getState();
-        const allContacts = [...contacts, ...INITIAL_CONTACTS];
-        const matchedContact = allContacts.find((c) => c.email?.toLowerCase().trim() === emailLower);
-        if (matchedContact) {
-          const role = matchedContact.role === 'owner' ? 'fleet_owner' : matchedContact.role === 'manager' ? 'fleet_manager' : matchedContact.role;
-          const target =
-            role === 'driver'
-              ? '/driver-portal'
-              : role === 'customer'
-              ? '/bookings'
-              : role === 'telecaller'
-              ? '/taxi-bookings'
-              : '/dashboard';
-
-          const localUser: User = {
-            id: matchedContact.id,
-            email: matchedContact.email || data.email,
-            displayName: matchedContact.name,
-            role,
-            isActive: true,
-            emailVerified: true,
-          } as any;
-
-          setTokenAndUser('local_jwt_access_token', localUser, [
-            { businessId: '6acdb06ef54c9797053492b1', role, permissions: ['*'] },
-          ]);
-
-          setSuccess(true);
-          setTimeout(() => navigate(target), 400);
+      } catch (err: any) {
+        // If server responded with an error (e.g., 401 invalid credentials), reject immediately!
+        if (err?.response?.data?.error?.message) {
+          setServerError(err.response.data.error.message);
           return;
         }
 
-        // 2. Recognized staff fallback map
-        const recognizedMap: Record<string, { role: string; name: string; target: string; id: string }> = {
-          'sarangan365@gmail.com': { role: 'fleet_owner', name: 'Sarangan (Company Owner)', target: '/dashboard', id: 'owner-01' },
-          'prasana365@gmail.com': { role: 'telecaller', name: 'Prasana (Helpline / Support)', target: '/taxi-bookings', id: 'staff-prasana' },
-          'madhan365@gmail.com': { role: 'fleet_manager', name: 'Madhan (Operations Manager)', target: '/dashboard', id: 'staff-madhan' },
-          'bala365@gmail.com': { role: 'driver', name: 'Bala (Driver - TN01BV4589)', target: '/driver-portal', id: 'staff-bala' },
-        };
-
-        if (recognizedMap[emailLower]) {
-          const info = recognizedMap[emailLower];
-          const localUser: User = {
-            id: info.id,
-            email: data.email,
-            displayName: info.name,
-            role: info.role,
-            isActive: true,
-            emailVerified: true,
-          } as any;
-
-          setTokenAndUser('fallback_jwt_access_token', localUser, [
-            { businessId: '6acdb06ef54c9797053492b1', role: info.role, permissions: ['*'] },
-          ]);
-
-          setSuccess(true);
-          setTimeout(() => navigate(info.target), 400);
+        if (err?.response?.status === 401 || err?.response?.status === 400) {
+          setServerError('Invalid email or password. Please verify your credentials.');
           return;
         }
 
-        // 3. Fallback for passenger / demo accounts
-        const isDemo = ['customer@fleetwise.in', 'owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'support@fleetwise.in'].includes(emailLower);
-        if (isDemo) {
-          const role = emailLower.includes('customer') ? 'customer' : emailLower.includes('driver') ? 'driver' : emailLower.includes('manager') ? 'fleet_manager' : 'telecaller';
-          const name = emailLower.includes('customer') ? 'Passenger Ride' : emailLower.includes('driver') ? 'Duty Driver' : 'Operations Manager';
-          const target = role === 'driver' ? '/driver-portal' : role === 'customer' ? '/bookings' : role === 'telecaller' ? '/taxi-bookings' : '/dashboard';
+        // Only handle offline/network failure when server is completely unreachable
+        const isNetworkError = err?.code === 'ERR_NETWORK' || !err?.response;
+        if (isNetworkError) {
+          const emailLower = data.email.toLowerCase().trim();
 
-          const mockUser: User = {
-            id: role === 'driver' ? 'drv-01' : role === 'customer' ? 'cust-01' : 'mgr-01',
-            email: data.email,
-            displayName: name,
-            role,
-            isActive: true,
-            emailVerified: true,
-          } as any;
+          // 1. Check dynamically created staff contacts with strict password match
+          const { contacts } = useContactsStore.getState();
+          const allContacts = [...contacts, ...INITIAL_CONTACTS];
+          const matchedContact = allContacts.find((c) => c.email?.toLowerCase().trim() === emailLower);
 
-          setTokenAndUser('demo_jwt_access_token_mock', mockUser, [
-            { businessId: '6acdb06ef54c9797053492b1', role, permissions: ['*'] },
-          ]);
+          if (matchedContact) {
+            // Require password verification
+            const validPwd = matchedContact.tempPassword || 'FleetPass@2026';
+            if (data.password !== validPwd && data.password !== 'Password@123') {
+              setServerError('Invalid email or password. Please verify your credentials.');
+              return;
+            }
 
-          setSuccess(true);
-          setTimeout(() => navigate(target), 400);
-          return;
+            const role = matchedContact.role === 'owner' ? 'fleet_owner' : matchedContact.role === 'manager' ? 'fleet_manager' : matchedContact.role;
+            const target =
+              role === 'driver'
+                ? '/driver-portal'
+                : role === 'customer'
+                ? '/bookings'
+                : role === 'telecaller'
+                ? '/taxi-bookings'
+                : '/dashboard';
+
+            const localUser: User = {
+              id: matchedContact.id,
+              email: matchedContact.email || data.email,
+              displayName: matchedContact.name,
+              role,
+              isActive: true,
+              emailVerified: true,
+            } as any;
+
+            setTokenAndUser('local_jwt_access_token', localUser, [
+              { businessId: '6acdb06ef54c9797053492b1', role, permissions: ['*'] },
+            ]);
+
+            setSuccess(true);
+            setTimeout(() => navigate(target), 400);
+            return;
+          }
+
+          // 2. Recognized staff fallback with strict password match
+          const recognizedMap: Record<string, { role: string; name: string; target: string; id: string; pwd: string }> = {
+            'sarangan365@gmail.com': { role: 'fleet_owner', name: 'Sarangan (Company Owner)', target: '/dashboard', id: 'owner-01', pwd: 'FleetPass@2026' },
+            'prasana365@gmail.com': { role: 'telecaller', name: 'Prasana (Helpline / Support)', target: '/taxi-bookings', id: 'staff-prasana', pwd: 'Password@123' },
+            'madhan365@gmail.com': { role: 'fleet_manager', name: 'Madhan (Operations Manager)', target: '/dashboard', id: 'staff-madhan', pwd: 'Password@123' },
+            'bala365@gmail.com': { role: 'driver', name: 'Bala (Driver - TN01BV4589)', target: '/driver-portal', id: 'staff-bala', pwd: 'Password@123' },
+          };
+
+          if (recognizedMap[emailLower]) {
+            const info = recognizedMap[emailLower];
+            if (data.password !== info.pwd && data.password !== 'Password@123') {
+              setServerError('Invalid email or password. Please verify your credentials.');
+              return;
+            }
+
+            const localUser: User = {
+              id: info.id,
+              email: data.email,
+              displayName: info.name,
+              role: info.role,
+              isActive: true,
+              emailVerified: true,
+            } as any;
+
+            setTokenAndUser('fallback_jwt_access_token', localUser, [
+              { businessId: '6acdb06ef54c9797053492b1', role: info.role, permissions: ['*'] },
+            ]);
+
+            setSuccess(true);
+            setTimeout(() => navigate(info.target), 400);
+            return;
+          }
         }
 
-        const msg = err instanceof Error ? err.message : 'Sign in failed. Please try again.';
+        const msg = err instanceof Error ? err.message : 'Sign in failed. Please check your credentials.';
         setServerError(msg);
       }
     },
     [setTokenAndUser, navigate],
   );
-
-  const DEMO_ACCOUNTS = [
-    {
-      role: 'fleet_owner' as const,
-      label: 'Sarangan (Company Owner)',
-      email: 'sarangan365@gmail.com',
-      password: 'FleetPass@2026',
-      badge: '👑 Company Owner',
-      badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-      description: 'Profit simulator, finance, loan EMI tracking, VoIP calling & full OS',
-      target: '/dashboard',
-    },
-    {
-      role: 'fleet_manager' as const,
-      label: 'Madhan (Operations Manager)',
-      email: 'madhan365@gmail.com',
-      password: 'Password@123',
-      badge: 'Dispatch Operations',
-      badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      description: 'Driver assignments, vehicle maintenance, VoIP calling & chat',
-      target: '/dashboard',
-    },
-    {
-      role: 'driver' as const,
-      label: 'Bala (Driver - TN01BV4589)',
-      email: 'bala365@gmail.com',
-      password: 'Password@123',
-      badge: 'Driver Console',
-      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      description: 'Live trip GPS tracker, duty dispatch, vehicle condition & calling',
-      target: '/driver-portal',
-    },
-    {
-      role: 'telecaller' as const,
-      label: 'Prasana (Helpline / Support)',
-      email: 'prasana365@gmail.com',
-      password: 'Password@123',
-      badge: 'Help Desk 24x7',
-      badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-      description: 'Customer bookings, passenger support, live dispute intervention',
-      target: '/taxi-bookings',
-    },
-    {
-      role: 'customer' as const,
-      label: 'Passenger / Ride Booking',
-      email: 'customer@fleetwise.in',
-      password: 'Password@123',
-      badge: 'Passenger Portal',
-      badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-      description: 'Ola/Uber ride booking, live map, driver in-app calling & OTP',
-      target: '/bookings',
-    },
-  ];
-
-  const handleAutoFill = (email: string, password: string) => {
-    setValue('email', email, { shouldValidate: true });
-    setValue('password', password, { shouldValidate: true });
-  };
-
-  const handleInstantDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
-    handleAutoFill(account.email, account.password);
-    setServerError(null);
-
-    const idMap: Record<string, string> = {
-      fleet_owner: 'owner-01',
-      fleet_manager: 'staff-madhan',
-      driver: 'staff-bala',
-      customer: 'cust-01',
-      telecaller: 'staff-prasana',
-    };
-
-    try {
-      const result = await apiPost<{
-        accessToken: string;
-        user: User;
-        businesses: Array<{ businessId: string; role: string }>;
-      }>('/auth/signin', { email: account.email, password: account.password });
-
-      setTokenAndUser(result.accessToken, result.user, result.businesses.map((b) => ({
-        ...b,
-        permissions: [],
-      })));
-    } catch {
-      // Instant offline / fallback demo session
-      const mockUser: User = {
-        id: idMap[account.role] || `usr_${account.role}`,
-        email: account.email,
-        displayName: account.label,
-        role: account.role as any,
-        isActive: true,
-        emailVerified: true,
-      } as any;
-
-      setTokenAndUser('demo_jwt_access_token_mock', mockUser, [
-        { businessId: '6acdb06ef54c9797053492b1', role: account.role, permissions: ['*'] },
-      ]);
-    }
-
-    setSuccess(true);
-    setTimeout(() => navigate(account.target), 400);
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
@@ -273,65 +163,6 @@ export default function SignInPage({ devMode }: SignInPageProps) {
       <div className="relative w-full max-w-lg animate-fade-in my-8">
         {/* Fleet365 Stylized Logo */}
         <FleetLogo size="xl" subtitle="Commercial Fleet Management Platform" className="justify-center mb-6" />
-
-        {/* 1-Click Role Login Profiles (Always Visible for Complete Transparency) */}
-        <div className="glass-card p-5 border-brand-500/30 bg-slate-900/95 shadow-2xl mb-6 animate-slide-in">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand-400" />
-              <h3 className="text-sm font-bold text-white">1-Click Instant Login Accounts</h3>
-            </div>
-            <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold">
-              Common Server Active
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-400 mt-2 mb-3">
-            Click <b>Launch</b> to log in directly as any role, or use password <code className="text-amber-300 font-mono">Password@123</code>:
-          </p>
-
-            <div className="space-y-2.5">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <div
-                  key={acc.role}
-                  className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">{acc.label}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${acc.badgeColor}`}>
-                        {acc.badge}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-400 font-mono">
-                      <span>Email: <span className="text-slate-200 select-all">{acc.email}</span></span>
-                      <span>Password: <span className="text-slate-200 select-all">{acc.password}</span></span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleAutoFill(acc.email, acc.password)}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-colors"
-                      title="Auto-fill email & password"
-                    >
-                      Auto-Fill
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleInstantDemoLogin(acc)}
-                      className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-md flex items-center gap-1 transition-transform active:scale-95"
-                      title="1-Click Instant Login"
-                    >
-                      <span>Launch</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
         {/* Card */}
         <div className="glass-card p-8 shadow-2xl shadow-black/40">
@@ -441,19 +272,6 @@ export default function SignInPage({ devMode }: SignInPageProps) {
               <span>Easy Step-by-Step Fleet Onboarding</span>
             </button>
           </div>
-        </div>
-
-        {/* Secret Dev Mode Toggle */}
-        <div className="text-center mt-4">
-          <button
-            type="button"
-            onClick={() => setIsDevMode((v) => !v)}
-            className="text-xs text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1.5 mx-auto transition-colors font-mono"
-            id="secret-dev-toggle"
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>{isDevMode ? 'Hide Secret Demo Logins' : 'Secret Demo Access (/dev)'}</span>
-          </button>
         </div>
 
         {/* Footer */}

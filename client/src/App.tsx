@@ -114,9 +114,9 @@ export default function App() {
         {/* Auth routes */}
         <Route path="/auth/signin" element={<SignInPage />} />
         <Route path="/auth/signup" element={<SignUpPage />} />
-        <Route path="/dev" element={<SignInPage devMode />} />
-        <Route path="/demo" element={<SignInPage devMode />} />
-        <Route path="/auth/dev" element={<SignInPage devMode />} />
+        <Route path="/dev" element={<SignInPage />} />
+        <Route path="/demo" element={<SignInPage />} />
+        <Route path="/auth/dev" element={<SignInPage />} />
 
         {/* Dedicated Customer Taxi Ride Portal */}
         <Route path="/bookings" element={<CustomerPortalPage />} />

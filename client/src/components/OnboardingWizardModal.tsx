@@ -44,7 +44,7 @@ export default function OnboardingWizardModal({
     ownerName: 'Sarangan R',
     ownerEmail: 'sarangan365@gmail.com',
     ownerPhone: '+919876543210',
-    ownerPassword: 'Password@123',
+    ownerPassword: '',
 
     // Step 2: Vehicle Selection
     selectedPresetId: 'dzire_tour_s',

@@ -22,7 +22,6 @@ import InAppCallModal from '../components/InAppCallModal.js';
 import ContactDirectoryModal from '../components/ContactDirectoryModal.js';
 import CompulsoryPasswordChangeModal from '../components/CompulsoryPasswordChangeModal.js';
 import IncomingCallModal from '../components/IncomingCallModal.js';
-import LiveDemoPersonaBar from '../components/LiveDemoPersonaBar.js';
 import MandatoryPermissionsModal from '../components/MandatoryPermissionsModal.js';
 import UserProfileModal from '../components/UserProfileModal.js';
 import DigitalIdCardModal from '../components/DigitalIdCardModal.js';
@@ -729,9 +728,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           setIsCallOpen(true);
         }}
       />
-
-      {/* Floating Demo Persona Testing Suite (1-Click Switch & Ring Phone) */}
-      <LiveDemoPersonaBar />
 
       {/* Real-Time Duty & Support Alert Toast */}
       {activeAlertToast && (

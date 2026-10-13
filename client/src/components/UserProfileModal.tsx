@@ -14,61 +14,13 @@ interface UserProfileModalProps {
   onOpenPasswordChange?: () => void;
 }
 
-const PERSONA_OPTIONS = [
-  {
-    role: 'fleet_owner',
-    name: 'Sarangan (Company Owner)',
-    email: 'sarangan365@gmail.com',
-    badge: '👑 Company Owner',
-    target: '/dashboard',
-    color: 'from-amber-600 via-brand-600 to-indigo-600',
-    description: 'Full access to all 12 modules, staff management & finance',
-  },
-  {
-    role: 'fleet_manager',
-    name: 'Madhan (Operations Manager)',
-    email: 'madhan365@gmail.com',
-    badge: '💼 Operations Manager',
-    target: '/dashboard',
-    color: 'from-purple-600 to-indigo-500',
-    description: 'Vehicle maintenance, trip dispatch & driver duty monitoring',
-  },
-  {
-    role: 'driver',
-    name: 'Bala (Duty Driver)',
-    email: 'bala365@gmail.com',
-    badge: '🚕 Duty Driver (TN01BV4589)',
-    target: '/driver-portal',
-    color: 'from-emerald-600 to-teal-500',
-    description: 'Driver Console, live radar GPS & incoming passenger rides',
-  },
-  {
-    role: 'telecaller',
-    name: 'Prasana (Helpline / Support)',
-    email: 'prasana365@gmail.com',
-    badge: '🎧 Dispatch Telecaller',
-    target: '/taxi-bookings',
-    color: 'from-cyan-600 to-blue-500',
-    description: 'Customer dispute resolution & driver dispatch helpline',
-  },
-  {
-    role: 'customer',
-    name: 'Passenger Ride Account',
-    email: 'customer@fleetwise.in',
-    badge: '👤 Passenger Ride Account',
-    target: '/bookings',
-    color: 'from-amber-500 to-orange-500',
-    description: 'Taxi booking portal, ride OTP & digital receipts',
-  },
-];
-
 export default function UserProfileModal({
   isOpen,
   onClose,
   onOpenPasswordChange,
 }: UserProfileModalProps) {
   const navigate = useNavigate();
-  const { user, activeBusinessId, setTokenAndUser, logout } = useAuthStore();
+  const { user, activeBusinessId, logout } = useAuthStore();
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [isIdCardOpen, setIsIdCardOpen] = useState(false);
 
@@ -78,27 +30,6 @@ export default function UserProfileModal({
   const displayName = user?.displayName || 'Fleet User';
   const email = user?.email || 'user@fleetwise.in';
   const phone = (user as any)?.phone || '+91 98410 11223';
-
-  const handleSwitchPersona = (p: typeof PERSONA_OPTIONS[0]) => {
-    setTokenAndUser('demo_jwt_token_' + p.role, {
-      id: `usr_${p.role}_01`,
-      email: p.email,
-      displayName: p.name,
-      role: p.role as any,
-      isActive: true,
-      emailVerified: true,
-    } as any, [
-      { businessId: activeBusinessId || 'biz_01', role: p.role, permissions: [] },
-    ]);
-
-    setTimeout(async () => {
-      const { registerCurrentUser } = await import('../services/socket.client.js');
-      registerCurrentUser();
-    }, 100);
-
-    onClose();
-    navigate(p.target);
-  };
 
   const handleLogout = async () => {
     onClose();
@@ -235,50 +166,6 @@ export default function UserProfileModal({
             )}
           </div>
 
-          {/* Fast Switch Role (For Live Pair Testing) */}
-          <div className="space-y-2 pt-1 border-t border-slate-800">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-brand-400" />
-                Switch Persona & Role
-              </span>
-              <span className="text-[10px] text-slate-500">1-Click Live Role Test</span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1.5">
-              {PERSONA_OPTIONS.map((p) => {
-                const isActive = userRole === p.role;
-                return (
-                  <button
-                    key={p.role}
-                    onClick={() => handleSwitchPersona(p)}
-                    className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
-                      isActive
-                        ? 'bg-brand-500/20 border-brand-500/50 shadow-sm'
-                        : 'bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/80 hover:border-slate-600'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-white">{p.badge}</span>
-                        {isActive && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">{p.description}</p>
-                    </div>
-                    {isActive ? (
-                      <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 ml-2" />
-                    ) : (
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-2" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
