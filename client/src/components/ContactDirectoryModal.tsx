@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Phone, MessageSquare, Search, Plus, Trash2, Edit3,
   Car, Shield, Headphones, UserCheck, Check, AlertCircle, X,
-  KeyRound, Radio, Navigation, Star, PhoneCall, Crown, Copy, RefreshCw
+  KeyRound, Radio, Navigation, Star, PhoneCall, Crown, Copy, RefreshCw,
+  CreditCard
 } from 'lucide-react';
 import { useContactsStore, type FleetContact, COMPANY_OWNER_CONTACT } from '../store/contacts.store.js';
 import { useAuthStore } from '../store/auth.store.js';
 import { apiPost, apiDelete } from '../services/api.js';
 import { subscribeToOnlineUsers, type OnlineUserPresence } from '../services/socket.client.js';
+import DigitalIdCardModal from './DigitalIdCardModal.js';
 
 interface Props {
   isOpen: boolean;
@@ -31,6 +33,7 @@ export default function ContactDirectoryModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [onlineUsers, setOnlineUsers] = useState<OnlineUserPresence[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedIdCardRole, setSelectedIdCardRole] = useState<'driver' | 'manager' | 'owner' | 'telecaller' | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -469,6 +472,18 @@ export default function ContactDirectoryModal({
                       </>
                     )}
 
+                    {/* View Digital Smart ID Card & DL */}
+                    <button
+                      onClick={() => {
+                        const r = contact.role === 'owner' ? 'owner' : contact.role === 'manager' ? 'manager' : contact.role === 'driver' ? 'driver' : 'telecaller';
+                        setSelectedIdCardRole(r);
+                      }}
+                      className="p-2 rounded-xl text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-slate-700/60 transition-colors"
+                      title={`View Official Digital Smart ID Card for ${contact.name}`}
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                    </button>
+
                     {/* Edit Contact & Password */}
                     <button
                       onClick={() => openAddModal(contact)}
@@ -651,6 +666,15 @@ export default function ContactDirectoryModal({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Official Digital Smart ID Card Modal */}
+      {selectedIdCardRole && (
+        <DigitalIdCardModal
+          isOpen={Boolean(selectedIdCardRole)}
+          onClose={() => setSelectedIdCardRole(null)}
+          initialRole={selectedIdCardRole}
+        />
       )}
     </div>
   );

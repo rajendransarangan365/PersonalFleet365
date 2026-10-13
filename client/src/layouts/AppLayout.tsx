@@ -5,7 +5,7 @@ import {
   FileBarChart, Settings, Calculator, LogOut, Bell, ChevronLeft,
   ChevronRight, Menu, X, Truck, Building2, ChevronDown, Sparkles,
   Navigation, PlusCircle, MessageSquare, Phone, Users, ShieldAlert,
-  AlertTriangle, ShieldCheck, Mic
+  AlertTriangle, ShieldCheck, Mic, CreditCard
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
 import { getSocket } from '../services/socket.client.js';
@@ -25,6 +25,7 @@ import IncomingCallModal from '../components/IncomingCallModal.js';
 import LiveDemoPersonaBar from '../components/LiveDemoPersonaBar.js';
 import MandatoryPermissionsModal from '../components/MandatoryPermissionsModal.js';
 import UserProfileModal from '../components/UserProfileModal.js';
+import DigitalIdCardModal from '../components/DigitalIdCardModal.js';
 import {
   checkFleetPermissions,
   subscribeToFleetPermissions,
@@ -160,6 +161,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   } | null>(null);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isIdCardModalOpen, setIsIdCardModalOpen] = useState(false);
   const [fleetPermissions, setFleetPermissions] = useState<FleetPermissionsState>(() => getCurrentFleetPermissions());
 
   const activeBusiness = businesses.find((b) => b.businessId === activeBusinessId);
@@ -519,6 +521,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <Phone className="w-4 h-4" />
             </button>
 
+            {/* Official Digital Smart ID Card & DL Button */}
+            <button
+              onClick={() => setIsIdCardModalOpen(true)}
+              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-amber-400 hover:text-amber-300 border border-slate-700/60 transition-colors"
+              title="Official Smart ID Card & Driving Licence Credentials"
+              id="header-id-card-button"
+            >
+              <CreditCard className="w-4 h-4" />
+            </button>
+
             {/* Staff & Employee Directory Button (Owner & Manager Only) */}
             {(userRole === 'fleet_owner' || userRole === 'fleet_manager') && (
               <button
@@ -694,6 +706,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         onOpenPasswordChange={() => setMustChangePassword(true)}
+      />
+
+      {/* Official Digital Smart ID Card & Driving Licence Modal */}
+      <DigitalIdCardModal
+        isOpen={isIdCardModalOpen}
+        onClose={() => setIsIdCardModalOpen(false)}
       />
 
       {/* Real Incoming VoIP Call Screen (Accept & Decline with Ringtone) */}

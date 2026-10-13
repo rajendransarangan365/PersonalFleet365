@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import {
   X, User, Mail, Phone, Shield, Building, KeyRound,
   LogOut, Check, Sparkles, Navigation, Car, Crown,
-  Briefcase, Headphones, ExternalLink, ShieldCheck
+  Briefcase, Headphones, ExternalLink, ShieldCheck, CreditCard, ChevronRight
 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store.js';
 import { useNavigate } from 'react-router-dom';
+import DigitalIdCardModal from './DigitalIdCardModal.js';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -25,8 +26,8 @@ const PERSONA_OPTIONS = [
   },
   {
     role: 'fleet_manager',
-    name: 'Kishore M. (Operations Manager)',
-    email: 'manager@fleetwise.in',
+    name: 'Madhan (Operations Manager)',
+    email: 'madhan365@gmail.com',
     badge: '💼 Operations Manager',
     target: '/dashboard',
     color: 'from-purple-600 to-indigo-500',
@@ -34,30 +35,30 @@ const PERSONA_OPTIONS = [
   },
   {
     role: 'driver',
-    name: 'Karthik Raja',
-    email: 'driver@fleetwise.in',
+    name: 'Bala (Duty Driver)',
+    email: 'bala365@gmail.com',
     badge: '🚕 Duty Driver (TN01BV4589)',
     target: '/driver-portal',
     color: 'from-emerald-600 to-teal-500',
-    description: 'Driver Console, live trip GPS tracking & passenger rides',
+    description: 'Driver Console, live radar GPS & incoming passenger rides',
+  },
+  {
+    role: 'telecaller',
+    name: 'Prasana (Helpline / Support)',
+    email: 'prasana365@gmail.com',
+    badge: '🎧 Dispatch Telecaller',
+    target: '/taxi-bookings',
+    color: 'from-cyan-600 to-blue-500',
+    description: 'Customer dispute resolution & driver dispatch helpline',
   },
   {
     role: 'customer',
-    name: 'Ananya Sharma',
+    name: 'Passenger Ride Account',
     email: 'customer@fleetwise.in',
     badge: '👤 Passenger Ride Account',
     target: '/bookings',
     color: 'from-amber-500 to-orange-500',
     description: 'Taxi booking portal, ride OTP & digital receipts',
-  },
-  {
-    role: 'telecaller',
-    name: 'Fleet 365 24x7 Helpline Support',
-    email: 'telecaller@fleetwise.in',
-    badge: '🎧 Dispatch Telecaller',
-    target: '/taxi-bookings',
-    color: 'from-cyan-600 to-blue-500',
-    description: 'Customer dispute resolution & driver dispatch helpline',
   },
 ];
 
@@ -69,6 +70,7 @@ export default function UserProfileModal({
   const navigate = useNavigate();
   const { user, activeBusinessId, setTokenAndUser, logout } = useAuthStore();
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const [isIdCardOpen, setIsIdCardOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -189,6 +191,28 @@ export default function UserProfileModal({
             </div>
           </div>
 
+          {/* Official Digital Smart ID Card Button */}
+          <button
+            onClick={() => setIsIdCardOpen(true)}
+            className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-brand-500/10 to-indigo-500/10 border border-brand-500/30 hover:border-brand-500/60 flex items-center justify-between transition-all group"
+          >
+            <div className="flex items-center gap-2.5">
+              <CreditCard className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform flex-shrink-0" />
+              <div className="text-left">
+                <p className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
+                  <span>View Official Smart ID Card</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    RTO Verified
+                  </span>
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  {userRole === 'driver' ? 'Full Driving Licence, Badge No & RTO Verification' : 'Company Smart Badge, Staff ID & Security Clearance'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+          </button>
+
           {/* Security & Password Action */}
           <div className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/60 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -275,6 +299,12 @@ export default function UserProfileModal({
           </button>
         </div>
       </div>
+
+      {/* Official Digital Smart ID Card Modal */}
+      <DigitalIdCardModal
+        isOpen={isIdCardOpen}
+        onClose={() => setIsIdCardOpen(false)}
+      />
     </div>
   );
 }
