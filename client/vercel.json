@@ -3,8 +3,12 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/v1/(.*)",
+      "destination": "https://fleet365-api.onrender.com/api/v1/$1"
+    },
+    {
       "source": "/api/(.*)",
-      "destination": "https://fleet365-api.onrender.com/api/$1"
+      "destination": "https://fleet365-api.onrender.com/api/v1/$1"
     },
     {
       "source": "/health",

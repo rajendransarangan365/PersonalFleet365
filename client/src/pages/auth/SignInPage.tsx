@@ -6,7 +6,7 @@ import { Eye, EyeOff, Truck, AlertCircle, CheckCircle2, Sparkles, KeyRound, Shie
 import { SignInSchema, type SignInInput } from '@fleetwise/shared';
 import { apiPost } from '../../services/api.js';
 import { useAuthStore } from '../../store/auth.store.js';
-import { useContactsStore } from '../../store/contacts.store.js';
+import { useContactsStore, INITIAL_CONTACTS } from '../../store/contacts.store.js';
 import type { User } from '@fleetwise/shared';
 import OnboardingWizardModal from '../../components/OnboardingWizardModal.js';
 import FleetLogo from '../../components/FleetLogo.js';
@@ -67,9 +67,12 @@ export default function SignInPage({ devMode }: SignInPageProps) {
         setSuccess(true);
         setTimeout(() => navigate(target), 400);
       } catch (err: unknown) {
-        // Check dynamically created staff contacts from contactsStore
+        const emailLower = data.email.toLowerCase().trim();
+
+        // 1. Check dynamically created staff contacts from contactsStore or INITIAL_CONTACTS
         const { contacts } = useContactsStore.getState();
-        const matchedContact = contacts.find((c) => c.email?.toLowerCase() === data.email.toLowerCase());
+        const allContacts = [...contacts, ...INITIAL_CONTACTS];
+        const matchedContact = allContacts.find((c) => c.email?.toLowerCase().trim() === emailLower);
         if (matchedContact) {
           const role = matchedContact.role === 'owner' ? 'fleet_owner' : matchedContact.role === 'manager' ? 'fleet_manager' : matchedContact.role;
           const target =
@@ -91,7 +94,7 @@ export default function SignInPage({ devMode }: SignInPageProps) {
           } as any;
 
           setTokenAndUser('local_jwt_access_token', localUser, [
-            { businessId: 'primary_fleet_biz', role, permissions: ['*'] },
+            { businessId: '6acdb06ef54c9797053492b1', role, permissions: ['*'] },
           ]);
 
           setSuccess(true);
@@ -99,16 +102,43 @@ export default function SignInPage({ devMode }: SignInPageProps) {
           return;
         }
 
-        // If demo credentials or dev accounts, automatically log in even if backend server returns 404 or is sleeping!
-        const isDemo = ['sarangan365@gmail.com', 'owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'customer@fleetwise.in', 'support@fleetwise.in', 'telecaller@fleetwise.in'].includes(data.email.toLowerCase());
+        // 2. Recognized staff fallback map
+        const recognizedMap: Record<string, { role: string; name: string; target: string; id: string }> = {
+          'sarangan365@gmail.com': { role: 'fleet_owner', name: 'Sarangan (Company Owner)', target: '/dashboard', id: 'owner-01' },
+          'prasana365@gmail.com': { role: 'telecaller', name: 'Prasana (Helpline / Support)', target: '/taxi-bookings', id: 'staff-prasana' },
+          'madhan365@gmail.com': { role: 'fleet_manager', name: 'Madhan (Operations Manager)', target: '/dashboard', id: 'staff-madhan' },
+          'bala365@gmail.com': { role: 'driver', name: 'Bala (Driver - TN01BV4589)', target: '/driver-portal', id: 'staff-bala' },
+        };
+
+        if (recognizedMap[emailLower]) {
+          const info = recognizedMap[emailLower];
+          const localUser: User = {
+            id: info.id,
+            email: data.email,
+            displayName: info.name,
+            role: info.role,
+            isActive: true,
+            emailVerified: true,
+          } as any;
+
+          setTokenAndUser('fallback_jwt_access_token', localUser, [
+            { businessId: '6acdb06ef54c9797053492b1', role: info.role, permissions: ['*'] },
+          ]);
+
+          setSuccess(true);
+          setTimeout(() => navigate(info.target), 400);
+          return;
+        }
+
+        // 3. Fallback for passenger / demo accounts
+        const isDemo = ['customer@fleetwise.in', 'owner@fleetwise.in', 'manager@fleetwise.in', 'driver@fleetwise.in', 'support@fleetwise.in'].includes(emailLower);
         if (isDemo) {
-          const isOwner = data.email.includes('owner') || data.email.toLowerCase() === 'sarangan365@gmail.com';
-          const role = isOwner ? 'fleet_owner' : data.email.includes('manager') ? 'fleet_manager' : data.email.includes('driver') ? 'driver' : data.email.includes('customer') ? 'customer' : 'telecaller';
-          const name = isOwner ? 'Sarangan (Company Owner)' : data.email.includes('manager') ? 'Operations Manager' : data.email.includes('driver') ? 'Duty Driver' : data.email.includes('customer') ? 'Passenger Ride' : 'Fleet 365 Helpline Desk';
+          const role = emailLower.includes('customer') ? 'customer' : emailLower.includes('driver') ? 'driver' : emailLower.includes('manager') ? 'fleet_manager' : 'telecaller';
+          const name = emailLower.includes('customer') ? 'Passenger Ride' : emailLower.includes('driver') ? 'Duty Driver' : 'Operations Manager';
           const target = role === 'driver' ? '/driver-portal' : role === 'customer' ? '/bookings' : role === 'telecaller' ? '/taxi-bookings' : '/dashboard';
 
           const mockUser: User = {
-            id: isOwner ? 'owner-01' : role === 'driver' ? 'drv-01' : role === 'customer' ? 'cust-01' : role === 'telecaller' ? 'tel-01' : 'mgr-01',
+            id: role === 'driver' ? 'drv-01' : role === 'customer' ? 'cust-01' : 'mgr-01',
             email: data.email,
             displayName: name,
             role,
@@ -117,7 +147,7 @@ export default function SignInPage({ devMode }: SignInPageProps) {
           } as any;
 
           setTokenAndUser('demo_jwt_access_token_mock', mockUser, [
-            { businessId: 'primary_fleet_biz', role, permissions: ['*'] },
+            { businessId: '6acdb06ef54c9797053492b1', role, permissions: ['*'] },
           ]);
 
           setSuccess(true);
@@ -145,43 +175,43 @@ export default function SignInPage({ devMode }: SignInPageProps) {
     },
     {
       role: 'fleet_manager' as const,
-      label: 'Fleet Manager (Operations)',
-      email: 'manager@fleetwise.in',
+      label: 'Madhan (Operations Manager)',
+      email: 'madhan365@gmail.com',
       password: 'Password@123',
       badge: 'Dispatch Operations',
       badgeColor: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
       description: 'Driver assignments, vehicle maintenance, VoIP calling & chat',
-      target: '/trips',
+      target: '/dashboard',
     },
     {
       role: 'driver' as const,
-      label: 'Commercial Driver',
-      email: 'driver@fleetwise.in',
+      label: 'Bala (Driver - TN01BV4589)',
+      email: 'bala365@gmail.com',
       password: 'Password@123',
       badge: 'Driver Console',
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-      description: 'Live trip GPS tracker, vehicle condition photos, duty task dispatch',
+      description: 'Live trip GPS tracker, duty dispatch, vehicle condition & calling',
       target: '/driver-portal',
     },
     {
+      role: 'telecaller' as const,
+      label: 'Prasana (Helpline / Support)',
+      email: 'prasana365@gmail.com',
+      password: 'Password@123',
+      badge: 'Help Desk 24x7',
+      badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+      description: 'Customer bookings, passenger support, live dispute intervention',
+      target: '/taxi-bookings',
+    },
+    {
       role: 'customer' as const,
-      label: 'Passenger / Customer',
+      label: 'Passenger / Ride Booking',
       email: 'customer@fleetwise.in',
       password: 'Password@123',
       badge: 'Passenger Portal',
       badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
       description: 'Ola/Uber ride booking, live map, driver in-app calling & OTP',
       target: '/bookings',
-    },
-    {
-      role: 'telecaller' as const,
-      label: 'Call Center & Support Desk',
-      email: 'support@fleetwise.in',
-      password: 'Password@123',
-      badge: 'Help Desk 24x7',
-      badgeColor: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
-      description: 'Dispute resolution, taxi bookings overview, live intervention',
-      target: '/taxi-bookings',
     },
   ];
 
@@ -196,10 +226,10 @@ export default function SignInPage({ devMode }: SignInPageProps) {
 
     const idMap: Record<string, string> = {
       fleet_owner: 'owner-01',
-      fleet_manager: 'mgr-01',
-      driver: 'drv-01',
+      fleet_manager: 'staff-madhan',
+      driver: 'staff-bala',
       customer: 'cust-01',
-      telecaller: 'tel-01',
+      telecaller: 'staff-prasana',
     };
 
     try {
@@ -225,7 +255,7 @@ export default function SignInPage({ devMode }: SignInPageProps) {
       } as any;
 
       setTokenAndUser('demo_jwt_access_token_mock', mockUser, [
-        { businessId: 'demo_fleet_biz_01', role: account.role, permissions: [] },
+        { businessId: '6acdb06ef54c9797053492b1', role: account.role, permissions: ['*'] },
       ]);
     }
 

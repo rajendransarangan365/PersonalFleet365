@@ -43,8 +43,43 @@ const LEGACY_MOCK_IDS = new Set([
   'cust-01', 'cust-02'
 ]);
 
-const INITIAL_CONTACTS: FleetContact[] = [
+export const INITIAL_CONTACTS: FleetContact[] = [
   COMPANY_OWNER_CONTACT,
+  {
+    id: 'staff-prasana',
+    name: 'Prasana',
+    role: 'telecaller',
+    phone: '+91 98402 11223',
+    email: 'prasana365@gmail.com',
+    status: 'offline',
+    tempPassword: 'Password@123',
+    mustChangePassword: false,
+    rating: 4.9,
+  },
+  {
+    id: 'staff-madhan',
+    name: 'Madhan',
+    role: 'manager',
+    phone: '9994949576',
+    email: 'madhan365@gmail.com',
+    status: 'offline',
+    tempPassword: 'Password@123',
+    mustChangePassword: false,
+    rating: 4.8,
+  },
+  {
+    id: 'staff-bala',
+    name: 'Bala',
+    role: 'driver',
+    phone: '+91 98401 23456',
+    email: 'bala365@gmail.com',
+    vehiclePlate: 'TN01BV4589',
+    vehicleModel: 'Maruti Suzuki Tour S (CNG)',
+    status: 'offline',
+    tempPassword: 'Password@123',
+    mustChangePassword: false,
+    rating: 5.0,
+  },
 ];
 
 // Clean up legacy localStorage key from older versions
@@ -107,12 +142,12 @@ export const useContactsStore = create<ContactsState>()(
       getTelecallers: () => get().contacts.filter((c) => c.role === 'telecaller'),
       getCustomers: () => get().contacts.filter((c) => c.role === 'customer'),
 
-      resetToDefaults: () => set({ contacts: [COMPANY_OWNER_CONTACT] }),
+      resetToDefaults: () => set({ contacts: INITIAL_CONTACTS }),
       resetToOwnerOnly: () => set({ contacts: [COMPANY_OWNER_CONTACT] }),
     }),
     {
-      name: 'fleet365_contacts_store_v2',
-      version: 2,
+      name: 'fleet365_contacts_store_v3',
+      version: 3,
       migrate: (persistedState: any) => {
         const raw: FleetContact[] = (persistedState as any)?.contacts || [];
         // Purge mock dummy contacts
@@ -127,18 +162,23 @@ export const useContactsStore = create<ContactsState>()(
             c.id !== 'mgr-01'
         );
 
-        const hasOwner = filtered.some((c) => c.role === 'owner' || c.email === 'sarangan365@gmail.com');
-        const finalContacts = hasOwner
-          ? filtered.map((c) =>
-              c.email === 'sarangan365@gmail.com' || c.id === 'owner-01'
-                ? { ...COMPANY_OWNER_CONTACT, ...c, role: 'owner' as const }
-                : c
-            )
-          : [COMPANY_OWNER_CONTACT, ...filtered];
+        // Merge INITIAL_CONTACTS to ensure all 4 real accounts exist
+        const emailMap = new Map<string, FleetContact>();
+        for (const c of INITIAL_CONTACTS) {
+          if (c.email) emailMap.set(c.email.toLowerCase(), c);
+        }
+        for (const c of filtered) {
+          if (c.email) {
+            const existing = emailMap.get(c.email.toLowerCase());
+            emailMap.set(c.email.toLowerCase(), { ...existing, ...c });
+          } else {
+            emailMap.set(c.id, c);
+          }
+        }
 
         return {
           ...(persistedState as any),
-          contacts: finalContacts,
+          contacts: Array.from(emailMap.values()),
         };
       },
     },

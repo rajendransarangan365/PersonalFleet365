@@ -122,19 +122,31 @@ export function createApp() {
     res.json({ status: 'ok', version: '1.0.0', timestamp: new Date().toISOString() });
   });
 
-  // ─── API Routes ────────────────────────────────────────────────────────────
+  // ─── API Routes (Supports both /api/v1 and /api) ──────────────────────────
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/auth', authRoutes);
+
   app.use('/api/v1/businesses', businessRoutes);
+  app.use('/api/businesses', businessRoutes);
+
   app.use('/api/v1/app', appRoutes);
+  app.use('/api/app', appRoutes);
 
   // Vehicle routes (direct and nested under business)
   app.use('/api/v1/vehicles', vehicleRoutes);
+  app.use('/api/vehicles', vehicleRoutes);
   app.use('/api/v1/businesses/:businessId/vehicles', vehicleRoutes);
+  app.use('/api/businesses/:businessId/vehicles', vehicleRoutes);
   app.use('/api/v1/businesses/:businessId/trips', tripRoutes);
+  app.use('/api/businesses/:businessId/trips', tripRoutes);
   app.use('/api/v1/businesses/:businessId/expenses', expenseRoutes);
+  app.use('/api/businesses/:businessId/expenses', expenseRoutes);
   app.use('/api/v1/businesses/:businessId/drivers', driverRoutes);
+  app.use('/api/businesses/:businessId/drivers', driverRoutes);
   app.use('/api/v1/businesses/:businessId/simulations', simulationRoutes);
+  app.use('/api/businesses/:businessId/simulations', simulationRoutes);
   app.use('/api/v1/businesses/:businessId/analytics', analyticsRoutes);
+  app.use('/api/businesses/:businessId/analytics', analyticsRoutes);
 
   // ─── Error handlers ────────────────────────────────────────────────────────
   app.use(notFoundHandler);
